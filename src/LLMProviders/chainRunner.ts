@@ -11,6 +11,7 @@ import {
 import { Notice } from "obsidian";
 import ChainManager from "./chainManager";
 import { COPILOT_TOOL_NAMES, IntentAnalyzer } from "./intentAnalyzer";
+import ChainFactory from "@/chainFactory";
 
 export interface ChainRunner {
   run(

@@ -58,7 +58,15 @@ Question: {question}
     return str.replace(/\{/g, "{{").replace(/\}/g, "}}");
   }
 
-  getChatPrompt(): ChatPromptTemplate {
+  getChatPrompt(modelName?: string): ChatPromptTemplate {
+    if (modelName && modelName.startsWith("o1")) {
+      const systemMessage = this.escapeTemplateString(getSystemPrompt());
+      return ChatPromptTemplate.fromMessages([
+        [AI_SENDER, `AI: ${systemMessage}`],
+        new MessagesPlaceholder("history"),
+        HumanMessagePromptTemplate.fromTemplate("{input}"),
+      ]);
+    }
     return this.chatPrompt;
   }
 

@@ -201,6 +201,16 @@ Question: {question}
     const conversationalRetrievalQAChain = standaloneQuestionChain.pipe(answerChain);
     return conversationalRetrievalQAChain as RunnableSequence;
   }
+
+  /**
+   * Convert system message to AI message for o1-xx models.
+   *
+   * @param {string} systemMessage - the system message to convert
+   * @return {string} the converted AI message
+   */
+  public static convertSystemMessageToAiMessage(systemMessage: string): string {
+    return `AI: ${systemMessage}`;
+  }
 }
 
 export default ChainFactory;
