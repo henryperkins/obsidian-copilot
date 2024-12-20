@@ -1,10 +1,24 @@
+import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
 import ApiSetting from "./ApiSetting";
 import Collapsible from "./Collapsible";
-import { updateSetting, useSettingsValue } from "@/settings/model";
+import { getModelKey, updateModelConfig } from "@/aiParams";
 
 const ApiSettings: React.FC = () => {
   const settings = useSettingsValue();
+  const selectedModelKey = getModelKey();
+
+  const handleMaxCompletionTokensChange = (value: string) => {
+    const maxCompletionTokens = parseInt(value, 10);
+    if (!isNaN(maxCompletionTokens)) {
+      updateModelConfig(selectedModelKey, { maxCompletionTokens });
+    }
+  };
+
+  const handleReasoningEffortChange = (value: string) => {
+    updateModelConfig(selectedModelKey, { reasoningEffort: value });
+  };
+
   return (
     <div>
       <h1>API Settings</h1>
@@ -12,8 +26,7 @@ const ApiSettings: React.FC = () => {
       <div className="warning-message">
         Make sure you have access to the model and the correct API key.
         <br />
-        If errors occur, please re-enter the API key, save and reload the plugin to see if it
-        resolves the issue.
+        If errors occur, please try resetting to default and re-enter the API key.
       </div>
       <div>
         <div>
@@ -153,7 +166,7 @@ const ApiSettings: React.FC = () => {
             title="Azure OpenAI API Version"
             value={settings.azureOpenAIApiVersion}
             setValue={(value) => updateSetting("azureOpenAIApiVersion", value)}
-            placeholder="Enter Azure OpenAI API Version"
+            placeholder="Enter Azure OpenAIApi Version"
             type="text"
           />
           <ApiSetting
@@ -164,11 +177,6 @@ const ApiSettings: React.FC = () => {
             placeholder="Enter Azure OpenAI API Embedding Deployment Name"
             type="text"
           />
-          <p>
-            For `o1-preview` model, ensure that the `azureOpenAIApiDeploymentName` is correctly
-            configured. The plugin uses `maxCompletionTokens` instead of `maxTokens` for `o1-preview`
-            models.
-          </p>
         </div>
       </Collapsible>
 
@@ -206,6 +214,25 @@ const ApiSettings: React.FC = () => {
           </a>
         </p>
       </Collapsible>
+
+      {selectedModelKey.startsWith("o1") && (
+        <div>
+          <ApiSetting
+            title="Max Completion Tokens"
+            value={settings.modelConfigs[selectedModelKey]?.maxCompletionTokens?.toString() || ""}
+            setValue={handleMaxCompletionTokensChange}
+            placeholder="Enter Max Completion Tokens"
+            type="number"
+          />
+          <ApiSetting
+            title="Reasoning Effort"
+            value={settings.modelConfigs[selectedModelKey]?.reasoningEffort || ""}
+            setValue={handleReasoningEffortChange}
+            placeholder="Enter Reasoning Effort"
+            type="text"
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -20,7 +20,7 @@ If you enjoy Copilot for Obsidian, please consider [sponsoring this project](htt
 <a href="https://www.buymeacoffee.com/logancyang" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 150px !important;" ></a>
 
 SPECIAL THANKS TO OUR TOP SPONSORS:
-@pedramamini, @Arlorean, @dashinja, @azagore, @MTGMAD, @gpythomas, @emaynard, @scmarinelli, @borthwick, @adamhill, @gluecode, @rusi, @timgrote, @JiaruiYu-Consilium, @ddocta, @AMOz1, @chchwy, @pborenstein, @GitTom, @kazukgw, @mjluser1, @joesfer, @rwaal, @turnoutnow-harpreet, @dreznicek, @xrise-informatik, @jeremygentles, @ZhengRui, @bfoujols
+@mikelaaron, @pedramamini, @Arlorean, @dashinja, @azagore, @MTGMAD, @gpythomas, @emaynard, @scmarinelli, @borthwick, @adamhill, @gluecode, @rusi, @timgrote, @JiaruiYu-Consilium, @ddocta, @AMOz1, @chchwy, @pborenstein, @GitTom, @kazukgw, @mjluser1, @joesfer, @rwaal, @turnoutnow-harpreet, @dreznicek, @xrise-informatik, @jeremygentles, @ZhengRui, @bfoujols, @jsmith0475, @pagiaddlemon, @sebbyyyywebbyyy, @royschwartz2
 
 [Changelog](https://github.com/logancyang/obsidian-copilot/releases)
 
@@ -30,7 +30,7 @@ Copilot Plus is a brand new mode that brings powerful agentic capabilities to Ob
 
 Check out the demo video below for the first sneak peak of what Copilot Plus can do. It is under active development so expect more features to come very soon!
 
-<a href="https://youtu.be/WxcBEXkQoSE?si=Y5HnJgt-Ii_ZxLDl" target="_blank"><img src="./images/thumbnail-copilot-plus.png" width="700" /></a>
+<a href="https://youtu.be/tZ2jm_UPc6c?si=KjwkHFFRAHwZqlW4" target="_blank"><img src="./images/thumbnail-copilot-plus.png" width="700" /></a>
 
 ## 🛠️ Features
 
@@ -55,8 +55,6 @@ Chat and Vault QA modes are completely free to use. Copilot Plus is currently in
 **OpenAI**, **Anthropic**, **Azure OpenAI**, **Google Gemini**, **Cohere**, **OpenRouter**, **GROQ**, and any **3rd Party Models with OpenAI-Compatible API** are supported. You can easily add them via Custom Model in Copilot settings.
 
 **LM Studio** and **Ollama** are supported for local models. Please check out the super simple setup guide [here](local_copilot.md). Don't forget to flex your creativity in custom prompts using local models!
-
-**Azure OpenAI o1-preview** model is supported. Ensure that the `azureOpenAIApiDeploymentName` is correctly configured in the settings.
 
 ## 🤗 New to Copilot? Quick Guide for Beginners
 
@@ -172,3 +170,15 @@ If you share my vision, please consider [sponsoring this project](https://github
 Please also help spread the word by sharing about the Copilot for Obsidian Plugin on Twitter/X, Reddit, or any other social media platform you use.
 
 You can find me on Twitter/X [@logancyang](https://twitter.com/logancyang).
+
+## Configuring Settings for `o1-preview` Deployments
+
+To configure settings for `o1-preview` deployments, follow these steps:
+
+1. **Max Completion Tokens**: Set the maximum number of tokens for completions.
+2. **Reasoning Effort**: Set the reasoning effort for the `o1` model.
+
+### Limitations
+
+- System messages are not supported for `o1-preview` models.
+- The deployment name set in Azure must be used in settings.

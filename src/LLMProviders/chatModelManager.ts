@@ -113,7 +113,7 @@ export default class ChatModelManager {
         azureOpenAIApiKey: getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
         azureOpenAIApiInstanceName: settings.azureOpenAIApiInstanceName,
         azureOpenAIApiDeploymentName: settings.azureOpenAIApiDeploymentName,
-        azureOpenAIApiVersion: settings.azureOpenAIApiVersion,
+        azureOpenAIApiVersion: isO1Model ? "2024-09-01-preview" : settings.azureOpenAIApiVersion,
         configuration: {
           baseURL: customModel.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
@@ -194,10 +194,15 @@ export default class ChatModelManager {
   }
 
   private handleOpenAIExtraArgs(isO1Model: boolean, maxTokens: number, temperature: number) {
+    const settings = getSettings();
+    const modelConfig = settings.modelConfigs[getModelKey()] || {};
+    const { maxCompletionTokens, reasoningEffort } = modelConfig;
+
     return isO1Model
       ? {
-          maxCompletionTokens: maxTokens,
+          maxCompletionTokens: maxCompletionTokens || maxTokens,
           temperature: 1,
+          reasoningEffort: reasoningEffort || "default",
         }
       : {
           maxTokens: maxTokens,
@@ -306,6 +311,40 @@ export default class ChatModelManager {
       // Clear the current chat model
       ChatModelManager.chatModel = null;
       console.log("Failed to reinitialize model due to missing API key");
+    }
+  }
+
+  async ping(model: CustomModel): Promise<boolean> {
+    const tryPing = async (enableCors: boolean) => {
+      const modelToTest = { ...model, enableCors };
+      const modelConfig = this.getModelConfig(modelToTest);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { streaming, temperature, ...pingConfig } = modelConfig;
+      pingConfig.maxTokens = 10;
+
+      const testModel = new (this.getProviderConstructor(modelToTest))(pingConfig);
+      await testModel.invoke([{ role: "user", content: "hello" }], {
+        timeout: 3000,
+      });
+    };
+
+    try {
+      // First try without CORS
+      await tryPing(false);
+      return true;
+    } catch (error) {
+      console.log("First ping attempt failed, trying with CORS...");
+      try {
+        // Second try with CORS
+        await tryPing(true);
+        new Notice(
+          "Connection successful, but requires CORS to be enabled. Please enable CORS for this model once you add it above."
+        );
+        return true;
+      } catch (error) {
+        console.error("Chat model ping failed:", error);
+        throw error;
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ import {
   setChainType,
   subscribeToChainTypeChange,
   subscribeToModelKeyChange,
+  updateModelConfig,
 } from "@/aiParams";
 import ChainFactory, { ChainType, Document } from "@/chainFactory";
 import {
@@ -20,10 +21,10 @@ import {
   VaultQAChainRunner,
 } from "@/LLMProviders/chainRunner";
 import { HybridRetriever } from "@/search/hybridRetriever";
+import VectorStoreManager from "@/search/vectorStoreManager";
 import { getSettings, getSystemPrompt, subscribeToSettingsChange } from "@/settings/model";
 import { ChatMessage } from "@/sharedState";
 import { findCustomModel, isSupportedChain } from "@/utils";
-import VectorStoreManager from "@/VectorStoreManager";
 import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
@@ -56,7 +57,7 @@ export default class ChainManager {
     this.vectorStoreManager = vectorStoreManager;
     this.memoryManager = MemoryManager.getInstance();
     this.chatModelManager = ChatModelManager.getInstance();
-    this.embeddingsManager = this.vectorStoreManager.getEmbeddingsManager();
+    this.embeddingsManager = EmbeddingsManager.getInstance();
     this.promptManager = PromptManager.getInstance();
     this.brevilabsClient = brevilabsClient;
     this.createChainWithNewModel();
@@ -119,36 +120,23 @@ export default class ChainManager {
         newModelKey = customModel.name + "|" + customModel.provider;
       }
       this.chatModelManager.setChatModel(customModel);
+
+      const settings = getSettings();
+      const modelConfig = settings.modelConfigs[newModelKey] || {};
+      const { maxCompletionTokens, reasoningEffort } = modelConfig;
+
       // Must update the chatModel for chain because ChainFactory always
       // retrieves the old chain without the chatModel change if it exists!
       // Create a new chain with the new chatModel
       this.setChain(getChainType(), {
-        prompt: this.getEffectivePrompt(customModel),
+        maxCompletionTokens,
+        reasoningEffort,
       });
       console.log(`Setting model to ${newModelKey}`);
     } catch (error) {
       console.error("createChainWithNewModel failed: ", error);
       console.log("modelKey:", newModelKey);
     }
-  }
-
-  private getEffectivePrompt(customModel: CustomModel): ChatPromptTemplate {
-    const modelName = customModel.name;
-    const isO1Model = modelName.startsWith("o1");
-
-    let effectivePrompt = ChatPromptTemplate.fromMessages([
-      new MessagesPlaceholder("history"),
-      HumanMessagePromptTemplate.fromTemplate("{input}"),
-    ]);
-
-    if (isO1Model) {
-      effectivePrompt = ChatPromptTemplate.fromMessages([
-        [AI_SENDER, getSystemPrompt() || ""],
-        effectivePrompt,
-      ]);
-    }
-
-    return effectivePrompt;
   }
 
   async setChain(chainType: ChainType, options: SetChainOptions = {}): Promise<void> {
@@ -164,6 +152,10 @@ export default class ChainManager {
     const memory = this.memoryManager.getMemory();
     const chatPrompt = this.promptManager.getChatPrompt();
 
+    const settings = getSettings();
+    const modelConfig = settings.modelConfigs[getModelKey()] || {};
+    const { maxCompletionTokens, reasoningEffort } = modelConfig;
+
     switch (chainType) {
       case ChainType.LLM_CHAIN: {
         ChainManager.chain = ChainFactory.createNewLLMChain({
@@ -171,6 +163,8 @@ export default class ChainManager {
           memory: memory,
           prompt: options.prompt || chatPrompt,
           abortController: options.abortController,
+          maxCompletionTokens,
+          reasoningEffort,
         }) as RunnableSequence;
 
         setChainType(ChainType.LLM_CHAIN);
@@ -178,10 +172,10 @@ export default class ChainManager {
       }
 
       case ChainType.VAULT_QA_CHAIN: {
-        const { embeddingsAPI, db } = await this.initializeQAChain(options);
+        const { embeddingsAPI } = await this.initializeQAChain(options);
 
         const retriever = new HybridRetriever(
-          db,
+          this.vectorStoreManager.dbOps,
           this.app.vault,
           chatModel,
           embeddingsAPI,
@@ -199,7 +193,9 @@ export default class ChainManager {
           {
             llm: chatModel,
             retriever: retriever,
-            systemMessage: ChainFactory.convertSystemMessageToAiMessage(getSystemPrompt()),
+            systemMessage: getSystemPrompt(),
+            maxCompletionTokens,
+            reasoningEffort,
           },
           ChainManager.storeRetrieverDocuments.bind(ChainManager),
           getSettings().debug
@@ -221,6 +217,8 @@ export default class ChainManager {
           memory: memory,
           prompt: options.prompt || chatPrompt,
           abortController: options.abortController,
+          maxCompletionTokens,
+          reasoningEffort,
         }) as RunnableSequence;
 
         setChainType(ChainType.COPILOT_PLUS_CHAIN);
@@ -253,16 +251,7 @@ export default class ChainManager {
       throw new Error("Error getting embeddings API. Please check your settings.");
     }
 
-    let db = this.vectorStoreManager.getDb();
-    if (!db) {
-      console.warn("Copilot index is not loaded. Reinitializing...");
-      // Reinitialize the database since we now have valid embeddings API
-      db = await this.vectorStoreManager.initializeDB();
-
-      if (!db) {
-        throw new Error("Database failed to initialize. Please check your settings.");
-      }
-    }
+    const db = await this.vectorStoreManager.getOrInitializeDb(embeddingsAPI);
 
     // Handle index refresh if needed
     if (options.refreshIndex) {
@@ -305,7 +294,7 @@ export default class ChainManager {
       if (isO1Model) {
         //  Temporary fix：for o1-xx model need to covert systemMessage to aiMessage
         effectivePrompt = ChatPromptTemplate.fromMessages([
-          [AI_SENDER, ChainFactory.convertSystemMessageToAiMessage(getSystemPrompt()) || ""],
+          [AI_SENDER, getSystemPrompt() || ""],
           effectivePrompt,
         ]);
       }
