@@ -129,14 +129,24 @@ class LLMChainRunner extends BaseChainRunner {
 
     try {
       const chain = ChainManager.getChain();
-      const chatStream = await chain.stream({
-        input: userMessage.message,
-      } as any);
+      const chatModel = this.chainManager.chatModelManager.getChatModel();
+      const modelConfig = this.chainManager.chatModelManager.getModelConfig(chatModel);
 
-      for await (const chunk of chatStream) {
-        if (abortController.signal.aborted) break;
-        fullAIResponse += chunk.content;
-        updateCurrentAiMessage(fullAIResponse);
+      if (modelConfig.streaming) {
+        const chatStream = await chain.stream({
+          input: userMessage.message,
+        } as any);
+
+        for await (const chunk of chatStream) {
+          if (abortController.signal.aborted) break;
+          fullAIResponse += chunk.content;
+          updateCurrentAiMessage(fullAIResponse);
+        }
+      } else {
+        const response = await chatModel.call({
+          input: userMessage.message,
+        });
+        fullAIResponse = response;
       }
     } catch (error) {
       await this.handleError(error, debug, addMessage, updateCurrentAiMessage);
