@@ -420,3 +420,17 @@ describe("getFilePathsFromPatterns", () => {
     expect(result).toEqual(["test/image1.JPG", "test/image2.jpg", "image3.Jpg"]);
   });
 });
+
+describe("ModelConfig", () => {
+  it("should have streaming set to false for o1-preview model", () => {
+    const modelConfig = {
+      modelName: "o1-preview",
+      temperature: 1,
+      streaming: false,
+      maxRetries: 3,
+      maxConcurrency: 3,
+    };
+
+    expect(modelConfig.streaming).toBe(false);
+  });
+});

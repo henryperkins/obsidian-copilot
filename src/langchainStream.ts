@@ -21,13 +21,27 @@ export const getAIResponse = async (
   const abortController = new AbortController();
   updateShouldAbort(abortController);
   try {
-    await chainManager.runChain(
-      userMessage,
-      abortController,
-      updateCurrentAiMessage,
-      addMessage,
-      options
-    );
+    const chatModel = chainManager.chatModelManager.getChatModel();
+    const modelConfig = chainManager.chatModelManager.getModelConfig(chatModel);
+    if (modelConfig.streaming) {
+      await chainManager.runChain(
+        userMessage,
+        abortController,
+        updateCurrentAiMessage,
+        addMessage,
+        options
+      );
+    } else {
+      const response = await chatModel.call({
+        input: userMessage.message,
+      });
+      addMessage({
+        sender: AI_SENDER,
+        message: response,
+        isVisible: true,
+        timestamp: formatDateTime(new Date()),
+      });
+    }
   } catch (error) {
     console.error("Model request failed:", error);
     let errorMessage = "Model request failed: ";
