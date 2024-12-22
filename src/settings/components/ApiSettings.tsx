@@ -2,9 +2,36 @@ import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
 import ApiSetting from "./ApiSetting";
 import Collapsible from "./Collapsible";
+import { getModelKey, updateModelConfig } from "@/aiParams";
 
 const ApiSettings: React.FC = () => {
   const settings = useSettingsValue();
+  const selectedModelKey = getModelKey();
+
+  // --- Handler functions ---
+  const handleMaxCompletionTokensChange = (value: string) => {
+    const maxCompletionTokens = parseInt(value, 10);
+    // Check if the parsed value is a valid number and greater than 0
+    if (!isNaN(maxCompletionTokens) && maxCompletionTokens > 0) {
+      updateModelConfig(selectedModelKey, { maxCompletionTokens });
+    } else {
+      // Optionally, log an error or reset to a default value
+      console.error("Invalid maxCompletionTokens value:", value);
+    }
+  };
+
+  const handleReasoningEffortChange = (value: string) => {
+    const reasoningEffort = parseFloat(value);
+    // Check if the parsed value is a valid number and within an acceptable range
+    if (!isNaN(reasoningEffort) && reasoningEffort >= 0) {
+      updateModelConfig(selectedModelKey, { reasoningEffort });
+    } else {
+      // Optionally, log an error or reset to a default value
+      console.error("Invalid reasoningEffort value:", value);
+    }
+  };
+
+  // --- Rest of the component ---
   return (
     <div>
       <h1>API Settings</h1>
@@ -200,6 +227,29 @@ const ApiSettings: React.FC = () => {
           </a>
         </p>
       </Collapsible>
+
+      {selectedModelKey.startsWith("o1") && (
+        <div>
+          <ApiSetting
+            title="Max Completion Tokens"
+            value={
+              settings.modelConfigs[selectedModelKey]?.maxCompletionTokens?.toString() || ""
+            }
+            setValue={handleMaxCompletionTokensChange}
+            placeholder="Enter Max Completion Tokens"
+            type="number"
+          />
+          <ApiSetting
+            title="Reasoning Effort"
+            value={
+              settings.modelConfigs[selectedModelKey]?.reasoningEffort?.toString() || ""
+            }
+            setValue={handleReasoningEffortChange}
+            placeholder="Enter Reasoning Effort"
+            type="number"
+          />
+        </div>
+      )}
     </div>
   );
 };
