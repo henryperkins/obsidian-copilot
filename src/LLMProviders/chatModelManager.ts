@@ -15,6 +15,22 @@ import { ChatAnthropic } from "@langchain/anthropic";
 
 type ChatConstructorType = new (config: any) => BaseChatModel;
 
+// Add a mapping of supported parameters for o1-preview (update as needed)
+const o1PreviewSupportedParameters = [
+  "modelName",
+  "temperature",
+  "maxCompletionTokens", // Note: It's maxCompletionTokens, not maxTokens
+  "stop",
+  "presencePenalty",
+  "frequencyPenalty",
+  "logitBias",
+  "user",
+  "azureOpenAIApiKey",
+  "azureOpenAIApiInstanceName",
+  "azureOpenAIApiDeploymentName",
+  "azureOpenAIApiVersion",
+];
+
 const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.OPENAI]: ChatOpenAI,
   [ChatModelProviders.AZURE_OPENAI]: ChatOpenAI,
@@ -79,7 +95,7 @@ export default class ChatModelManager {
     const baseConfig: ModelConfig = {
       modelName: modelName,
       temperature: isO1Model ? 1 : settings.temperature,
-      streaming: true,
+      streaming: !isO1Model, // Disable streaming for o1-preview models
       maxRetries: 3,
       maxConcurrency: 3,
       enableCors: customModel.enableCors,
@@ -131,6 +147,27 @@ export default class ChatModelManager {
           baseURL: customModel.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
+        // Validate parameters for o1-preview
+        ...(isO1Model && {
+          callbacks: [
+            {
+              // Update handleLLMStart to only act if toJSON is a method on llm
+              handleLLMStart: async (llm: any, prompts: string[]) => {
+                if (typeof llm.toJSON === "function") {
+                  const config = llm?.toJSON();
+                  const serialized = config?.kwargs;
+                  // Remove unsupported parameters
+                  Object.keys(serialized).forEach((key) => {
+                    if (!o1PreviewSupportedParameters.includes(key)) {
+                      console.warn(`Removing unsupported parameter for o1-preview: ${key}`);
+                      delete serialized[key];
+                    }
+                  });
+                }
+              },
+            },
+          ],
+        }),
       },
       [ChatModelProviders.COHEREAI]: {
         apiKey: getDecryptedKey(customModel.apiKey || settings.cohereApiKey),
