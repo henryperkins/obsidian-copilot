@@ -5,6 +5,7 @@ import {
   setChainType,
   subscribeToChainTypeChange,
   subscribeToModelKeyChange,
+  CustomModel,
 } from "@/aiParams";
 import ChainFactory, { ChainType, Document } from "@/chainFactory";
 import {
@@ -114,7 +115,10 @@ export default class ChainManager {
       let customModel = findCustomModel(newModelKey, getSettings().activeModels);
       if (!customModel) {
         // Reset default model if no model is found
-        console.error("Resetting to default model. No model configuration found for: ", newModelKey);
+        console.error(
+          "Resetting to default model. No model configuration found for: ",
+          newModelKey
+        );
         customModel = BUILTIN_CHAT_MODELS[0];
         newModelKey = customModel.name + "|" + customModel.provider;
       }

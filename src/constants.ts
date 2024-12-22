@@ -229,6 +229,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   huggingfaceApiKey: "",
   cohereApiKey: "",
   anthropicApiKey: "",
+  modelConfigs: {},
   azureOpenAIApiKey: "",
   azureOpenAIApiInstanceName: "",
   azureOpenAIApiDeploymentName: "",

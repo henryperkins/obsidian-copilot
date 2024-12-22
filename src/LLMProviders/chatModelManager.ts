@@ -1,9 +1,8 @@
-import { CustomModel, ModelConfig, setModelKey } from "../aiParams";
-import { BUILTIN_CHAT_MODELS, ChatModelProviders } from "../constants";
-import { getDecryptedKey } from "../encryptionService";
-import { getSettings, subscribeToSettingsChange } from "../settings/model";
+import { CustomModel, ModelConfig, getModelKey, setModelKey } from "@/aiParams";
+import { BUILTIN_CHAT_MODELS, ChatModelProviders } from "@/constants";
+import { getDecryptedKey } from "@/encryptionService";
+import { getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
-import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatCohere } from "@langchain/cohere";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
@@ -11,7 +10,7 @@ import { ChatGroq } from "@langchain/groq";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { Notice } from "obsidian";
-import { safeFetch } from "../utils";
+import { safeFetch } from "@/utils";
 import { ChatAnthropic } from "@langchain/anthropic";
 
 type ChatConstructorType = new (config: any) => BaseChatModel;
@@ -87,7 +86,7 @@ export default class ChatModelManager {
     };
 
     const { maxTokens, temperature } = settings;
-       
+
     if (typeof maxTokens !== "number" || maxTokens <= 0 || !Number.isInteger(maxTokens)) {
       new Notice("Invalid maxTokens value in settings. Please use a positive integer.");
       throw new Error("Invalid maxTokens value in settings. Please use a positive integer.");
@@ -95,7 +94,9 @@ export default class ChatModelManager {
 
     if (typeof temperature !== "number" || temperature < 0 || temperature > 2) {
       new Notice("Invalid temperature value in settings. Please use a number between 0 and 2.");
-      throw new Error("Invalid temperature value in settings. Please use a number between 0 and 2.");
+      throw new Error(
+        "Invalid temperature value in settings. Please use a number between 0 and 2."
+      );
     }
 
     const providerConfig: {
@@ -122,9 +123,9 @@ export default class ChatModelManager {
       },
       [ChatModelProviders.AZURE_OPENAI]: {
         azureOpenAIApiKey: getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
-        azureOpenAIApiInstanceName: settings.azureOpenAIApiInstanceName,
+        azureOpenAIApiInstanceName: customModel.azureOpenAIApiInstanceName || "",
         azureOpenAIApiDeploymentName: customModel.azureOpenAIApiDeploymentName || "o1-preview",
-        azureOpenAIApiVersion: settings.azureOpenAIApiVersion,
+        azureOpenAIApiVersion: customModel.azureOpenAIApiVersion || "",
         ...this.handleAzureOpenAIExtraArgs(isO1Model, maxTokens, temperature),
         configuration: {
           baseURL: customModel.baseUrl,

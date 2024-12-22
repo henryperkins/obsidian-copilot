@@ -3,7 +3,7 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 
 import { atom, useAtom } from "jotai";
-import { settingsAtom, settingsStore } from "@/settings/model";
+import { getSettings, settingsAtom, settingsStore, updateSetting } from "@/settings/model";
 
 const userModelKeyAtom = atom<string | null>(null);
 const modelKeyAtom = atom(
@@ -53,6 +53,8 @@ export interface ModelConfig {
   openAIProxyBaseUrl?: string;
   groqApiKey?: string;
   enableCors?: boolean;
+  maxCompletionTokens?: number;
+  reasoningEffort?: number;
 }
 
 export interface SetChainOptions {
@@ -73,6 +75,9 @@ export interface CustomModel {
   isBuiltIn?: boolean;
   enableCors?: boolean;
   core?: boolean;
+  azureOpenAIApiDeploymentName?: string;
+  azureOpenAIApiInstanceName?: string;
+  azureOpenAIApiVersion?: string;
 }
 
 export function setModelKey(modelKey: string) {
@@ -109,4 +114,16 @@ export function useChainType() {
   return useAtom(chainTypeAtom, {
     store: settingsStore,
   });
+}
+
+export function updateModelConfig(modelKey: string, config: Partial<ModelConfig>) {
+  const settings = getSettings();
+  const updatedModelConfigs = {
+    ...settings.modelConfigs,
+    [modelKey]: {
+      ...(settings.modelConfigs[modelKey] || {}), // in case current model config does not exist
+      ...config,
+    },
+  };
+  updateSetting("modelConfigs", updatedModelConfigs);
 }
