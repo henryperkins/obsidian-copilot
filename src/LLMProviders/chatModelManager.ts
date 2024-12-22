@@ -80,7 +80,7 @@ export default class ChatModelManager {
     const baseConfig: ModelConfig = {
       modelName: modelName,
       temperature: isO1Model ? 1 : settings.temperature,
-      streaming: true,
+      streaming: !isO1Model, // Disable streaming for o1-preview
       maxRetries: 3,
       maxConcurrency: 3,
       enableCors: customModel.enableCors,
