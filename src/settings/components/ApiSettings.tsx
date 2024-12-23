@@ -35,13 +35,19 @@ const ApiSettings: React.FC = () => {
   };
 
   const handleAddAzureDeployment = () => {
-    setAzureDeployments([
-      ...azureDeployments,
-      { deploymentName: "", instanceName: "", apiKey: "", apiVersion: "" },
-    ]);
+    const newDeployment = { deploymentName: "", instanceName: "", apiKey: "", apiVersion: "" };
+    if (!newDeployment.deploymentName || !newDeployment.instanceName) {
+      console.error("Model key or deployment name cannot be empty");
+      return;
+    }
+    setAzureDeployments([...azureDeployments, newDeployment]);
   };
 
   const handleAzureDeploymentChange = (index: number, field: string, value: string) => {
+    if (!value) {
+      console.error("Model key or deployment name cannot be empty");
+      return;
+    }
     const updatedDeployments = azureDeployments.map((deployment, i) =>
       i === index ? { ...deployment, [field]: value } : deployment
     );
