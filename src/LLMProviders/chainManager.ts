@@ -122,12 +122,16 @@ export default class ChainManager {
         customModel = BUILTIN_CHAT_MODELS[0];
         newModelKey = customModel.name + "|" + customModel.provider;
       }
-      if (customModel.name === "o1-preview") {
-        customModel.apiKey = getSettings().azureOpenAIApiKey;
-        customModel.azureOpenAIApiDeploymentName = "o1-preview";
-        customModel.azureOpenAIApiInstanceName = getSettings().azureOpenAIApiInstanceName;
-        customModel.azureOpenAIApiVersion = getSettings().azureOpenAIApiVersion;
-        // Add any additional Azure-specific settings for "o1-preview" here
+      if (customModel.provider === "azure openai") {
+        const azureDeployments = getSettings().azureOpenAIApiDeployments || [];
+        const deployment = azureDeployments.find(
+          (d) => d.deploymentName === customModel.azureOpenAIApiDeploymentName
+        );
+        if (deployment) {
+          customModel.apiKey = deployment.apiKey;
+          customModel.azureOpenAIApiInstanceName = deployment.instanceName;
+          customModel.azureOpenAIApiVersion = deployment.apiVersion;
+        }
       }
       this.chatModelManager.setChatModel(customModel);
       // Must update the chatModel for chain because ChainFactory always

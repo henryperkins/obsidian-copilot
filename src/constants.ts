@@ -331,6 +331,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
     },
   },
   promptUsageTimestamps: {},
+  azureOpenAIApiDeployments: [], // Added to support multiple Azure OpenAI deployments
 };
 
 export const EVENT_NAMES = {

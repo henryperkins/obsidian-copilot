@@ -60,6 +60,12 @@ export interface CopilotSettings {
   numPartitions: number;
   modelConfigs: Record<string, ModelConfig>;
   maxCompletionTokens?: number;
+  azureOpenAIApiDeployments: Array<{
+    deploymentName: string;
+    instanceName: string;
+    apiKey: string;
+    apiVersion: string;
+  }>;
 }
 
 export const settingsStore = createStore();
