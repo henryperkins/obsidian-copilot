@@ -298,7 +298,7 @@ const ApiSettings: React.FC = () => {
                     title="Azure OpenAI API Version"
                     value={deployment.apiVersion}
                     setValue={(value) => handleAzureDeploymentChange(index, "apiVersion", value)}
-                    placeholder="Enter Azure OpenAIApi Version"
+                    placeholder="Enter Azure OpenAI API Version"
                   />
                   <ApiSetting
                     title="Azure OpenAI API Key"
