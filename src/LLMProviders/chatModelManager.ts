@@ -156,7 +156,7 @@ export default class ChatModelManager {
         ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as unknown as Fetch) : undefined,
         },
         // Validate parameters for o1-preview
         ...(isO1PreviewModel && {

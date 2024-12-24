@@ -537,7 +537,7 @@ export function extractYoutubeUrl(text: string): string | null {
  * It currently doesn't support streaming until this is implemented
  * https://forum.obsidian.md/t/support-streaming-the-request-and-requesturl-response-body/87381 */
 
-export const safeFetch: CustomFetch = async (url: string, init: RequestInit): Promise<Response> => {
+export const safeFetch: CustomFetch = async (url: string, init: RequestInit = {}): Promise<Response> => {
   if (init.headers) {
     delete (init.headers as Record<string, string>)["content-length"];
   }
