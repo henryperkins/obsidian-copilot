@@ -99,6 +99,13 @@ const Chat: React.FC<ChatProps> = ({
     customPromptProcessor: CustomPromptProcessor,
     fileParserManager: FileParserManager
   ) => {
+    // If currentChain can be null, handle that case before calling processContextNotes:
+    if (!currentChain) {
+      console.warn("No chain selected; skipping context note processing.");
+      // Return early or provide a fallback value if needed
+      return;
+    }
+
     const activeNote = app.workspace.getActiveFile();
     return await contextProcessor.processContextNotes(
       customPromptProcessor,
@@ -107,7 +114,7 @@ const Chat: React.FC<ChatProps> = ({
       contextNotes,
       includeActiveNote,
       activeNote,
-      currentChain
+      currentChain // now guaranteed non-null
     );
   };
 

@@ -23,14 +23,18 @@ export const getAIResponse = async (
     selectedText?: string;
   } = {}
 ) => {
-  const { selectedText } = options;
   const abortController = new AbortController();
   updateShouldAbort(abortController);
+
+  // Declare chatModel outside try-catch so it's available in the catch block
+  const chatModel = chainManager.chatModelManager.getChatModel();
+
   try {
-    const chatModel = chainManager.chatModelManager.getChatModel();
     const modelConfig = chainManager.chatModelManager.getChatModelConfiguration(getModelKey());
     const memory = chainManager.memoryManager.getMemory();
-    const memoryVariables = await memory.loadMemoryVariables({ selectedText });
+    const memoryVariables = await memory.loadMemoryVariables({
+      selectedText: options.selectedText,
+    });
 
     const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
     const isO1PreviewModel = modelName === "o1-preview";

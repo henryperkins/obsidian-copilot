@@ -1,6 +1,10 @@
 import { CustomModel } from "@/aiParams";
 import { RebuildIndexConfirmModal } from "@/components/modals/RebuildIndexConfirmModal";
-import { EmbeddingModelProviders, VAULT_VECTOR_STORE_STRATEGIES } from "@/constants";
+import {
+  EmbeddingModelProviders,
+  VAULT_VECTOR_STORE_STRATEGY,
+  VAULT_VECTOR_STORE_STRATEGIES,
+} from "@/constants";
 import VectorStoreManager from "@/search/vectorStoreManager";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
@@ -89,7 +93,9 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
         name="Auto-index vault strategy"
         description="Decide when you want the vault to be indexed."
         value={settings.indexVaultToVectorStore}
-        onChange={(value) => updateSetting("indexVaultToVectorStore", value)}
+        onChange={(value) =>
+          updateSetting("indexVaultToVectorStore", value as VAULT_VECTOR_STORE_STRATEGY)
+        }
         options={VAULT_VECTOR_STORE_STRATEGIES}
       />
       <br />
@@ -118,7 +124,7 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
       <br />
       <SliderComponent
         name="Max Sources"
-        description="Copilot goes through your vault to find relevant blocks and passes the top N blocks to the LLM. Default for N is 3. Increase if you want more sources included in the answer generation step. WARNING: more sources significantly degrades answer quality if the chat model is weak!"
+        description="Copilot goes through your vault to find relevant blocks and passes the top N blocks to the LLM. Default for N is 3. Increase if you want more sources included in the answer generated."
         min={1}
         max={30}
         step={1}
@@ -143,14 +149,14 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
       />
       <TextAreaComponent
         name="Exclusions"
-        description="Comma separated list of paths, tags, note titles or file extension, e.g. folder1, folder1/folder2, #tag1, #tag2, [[note1]], [[note2]], *.jpg, *.excallidraw.md etc, to be excluded from the indexing process. NOTE: Tags must be in the note properties, not the note content. Files which were previously indexed will remain in the index unless you force re-index."
+        description="Comma separated list of paths, tags, note titles or file extension, e.g. folder1, folder1/folder2, #tag1, #tag2, [[note1]], [[note2]], *.jpg, *.excallidraw.md etc, to be excluded from the index."
         placeholder="folder1, folder1/folder2, #tag1, #tag2, [[note1]], [[note2]], *.jpg, *.excallidraw.md"
         value={settings.qaExclusions}
         onChange={(value) => updateSetting("qaExclusions", value)}
       />
       <TextAreaComponent
         name="Inclusions"
-        description="When specified, ONLY these paths, tags, or note titles will be indexed (comma separated). Files which were previously indexed will remain in the index unless you force re-index. If overlapping with exclusions, exclusions take precedence. Format: folder1, folder1/folder2, #tag1, #tag2, [[note1]], [[note2]]"
+        description="When specified, ONLY these paths, tags, or note titles will be indexed (comma separated). Files which were previously indexed will remain in the index unless you force re-index."
         placeholder="folder1, #tag1, [[note1]]"
         value={settings.qaInclusions}
         onChange={(value) => updateSetting("qaInclusions", value)}
@@ -163,7 +169,7 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
       />
       <ToggleComponent
         name="Disable index loading on mobile"
-        description="When enabled, Copilot index won't be loaded on mobile devices to save resources. Only chat mode will be available. Any existing index from desktop sync will be preserved. Uncheck to enable QA modes on mobile."
+        description="When enabled, Copilot index won't be loaded on mobile devices to save resources. Only chat mode will be available. Any existing index from desktop sync will be preserved."
         value={settings.disableIndexOnMobile}
         onChange={(value) => updateSetting("disableIndexOnMobile", value)}
       />

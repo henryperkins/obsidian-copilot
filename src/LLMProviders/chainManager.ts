@@ -43,8 +43,8 @@ import {
 import { ChatMessage } from "../sharedState";
 import { findCustomModel, formatDateTime } from "../utils";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { BaseChatMemory } from "langchain/memory";
 import MemoryManager from "./memoryManager";
-
 export default class ChainManager {
   private static chain: RunnableSequence;
   private static retrievalChain: RunnableSequence;
@@ -162,7 +162,8 @@ export default class ChainManager {
     const modelName: string = customModel.name;
     const isO1PreviewModel: boolean = modelName === "o1-preview";
 
-    const effectivePrompt: ChatPromptTemplate = ChatPromptTemplate.fromMessages([
+    // Change from const to let since we need to reassign it
+    let effectivePrompt: ChatPromptTemplate = ChatPromptTemplate.fromMessages([
       new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
     ]);
@@ -170,7 +171,7 @@ export default class ChainManager {
     if (!isO1PreviewModel) {
       effectivePrompt = ChatPromptTemplate.fromMessages([
         [AI_SENDER, getSystemPrompt() || ""],
-        effectivePrompt,
+        ...effectivePrompt.promptMessages, // Spread the existing messages
       ]);
     }
 
@@ -187,7 +188,7 @@ export default class ChainManager {
 
     // Get chatModel, memory, prompt, and embeddingAPI from respective managers
     const chatModel: BaseChatModel = this.chatModelManager.getChatModel();
-    const memory: MemoryManager = this.memoryManager.getMemory();
+    const memory: BaseChatMemory = this.memoryManager.getMemory();
     const chatPrompt: ChatPromptTemplate = this.promptManager.getChatPrompt();
 
     switch (chainType) {
@@ -315,7 +316,7 @@ export default class ChainManager {
 
     // Handle ignoreSystemMessage
     if (ignoreSystemMessage || isO1PreviewModel) {
-      const effectivePrompt: ChatPromptTemplate = ChatPromptTemplate.fromMessages([
+      const effectivePrompt = ChatPromptTemplate.fromMessages([
         new MessagesPlaceholder("history"),
         HumanMessagePromptTemplate.fromTemplate("{input}"),
       ]);
@@ -337,21 +338,19 @@ export default class ChainManager {
     } catch (error) {
       if (isO1PreviewModel) {
         console.error("Error in o1-preview model execution:", error);
-        if (error instanceof Error && error.message.includes("system message")) {
-          addMessage({
-            message: "Error: o1-preview models do not support system messages.",
-            sender: AI_SENDER,
-            isVisible: true,
-            timestamp: formatDateTime(new Date()),
-          });
-        } else {
-          addMessage({
-            message: `Error in o1-preview model: ${error instanceof Error ? error.message : String(error)}`,
-            sender: AI_SENDER,
-            isVisible: true,
-            timestamp: formatDateTime(new Date()),
-          });
-        }
+        const errorMessage =
+          error instanceof Error && error.message.includes("system message")
+            ? "Error: o1-preview models do not support system messages."
+            : `Error in o1-preview model: ${error instanceof Error ? error.message : String(error)}`;
+
+        addMessage({
+          message: errorMessage,
+          sender: AI_SENDER,
+          isVisible: true,
+          timestamp: formatDateTime(new Date()),
+        });
+
+        return errorMessage;
       } else {
         throw error;
       }

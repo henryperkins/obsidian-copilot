@@ -41,13 +41,18 @@ export interface ModelConfig {
   maxRetries: number;
   maxConcurrency: number;
   maxCompletionTokens?: number;
+  maxTokens?: number; // Add this property
   reasoningEffort?: "low" | "medium" | "high";
   enableCors?: boolean;
   azureOpenAIApiKey?: string;
   azureOpenAIApiInstanceName?: string;
   azureOpenAIApiDeploymentName?: string;
   azureOpenAIApiVersion?: string;
-  // Added optional properties for flexibility
+  configuration?: {
+    baseURL?: string;
+    fetch?: (url: string, options: RequestInit) => Promise<Response>;
+    dangerouslyAllowBrowser?: boolean;
+  };
   presencePenalty?: number;
   frequencyPenalty?: number;
   logitBias?: Record<string, number>;
