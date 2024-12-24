@@ -539,6 +539,12 @@ export function extractYoutubeUrl(text: string): string | null {
 
 import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
 
+if (!Response.prototype.formData) {
+  Response.prototype.formData = async function () {
+    throw new Error("formData is not implemented in node-fetch");
+  };
+}
+
 export const safeFetch: CustomFetch = async (
   url: string,
   init: NodeFetchRequestInit = {}
