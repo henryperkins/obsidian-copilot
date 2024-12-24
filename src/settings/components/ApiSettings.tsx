@@ -114,6 +114,14 @@ const ApiSettings: React.FC = () => {
     updateSetting("azureOpenAIApiDeployments", validDeployments);
   };
 
+  const validateAzureFields = (deployment: AzureDeployment): boolean => {
+    if (!deployment.deploymentName || !deployment.instanceName) {
+      new Notice("Azure OpenAI Deployment Name and Instance Name are required.");
+      return false;
+    }
+    return true;
+  };
+
   return (
     <div>
       <h1>API Settings</h1>
@@ -330,9 +338,9 @@ const ApiSettings: React.FC = () => {
                       </div>
                     </>
                   )}
-                  {!deployment.deploymentName && (
+                  {!validateAzureFields(deployment) && (
                     <div className="warning-message">
-                      Warning: No deployment name set for this model.
+                      Warning: Azure OpenAI Deployment Name and Instance Name are required.
                     </div>
                   )}
                   <button type="button" onClick={() => handleRemoveAzureDeployment(index)}>

@@ -1,4 +1,3 @@
-// In settings/model.ts
 import { CustomModel, ModelConfig } from "../aiParams";
 import { ChainType } from "../chainFactory";
 import {
