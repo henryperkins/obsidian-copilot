@@ -170,3 +170,34 @@ If you share my vision, please consider [sponsoring this project](https://github
 Please also help spread the word by sharing about the Copilot for Obsidian Plugin on Twitter/X, Reddit, or any other social media platform you use.
 
 You can find me on Twitter/X [@logancyang](https://twitter.com/logancyang).
+
+## Azure OpenAI Setup Instructions
+
+To use Azure OpenAI with Copilot for Obsidian, follow these steps:
+
+1. **Create an Azure OpenAI resource**:
+   - Go to the [Azure portal](https://portal.azure.com/).
+   - Click on "Create a resource" and search for "Azure OpenAI".
+   - Follow the instructions to create your Azure OpenAI resource.
+
+2. **Get your API key and endpoint**:
+   - After creating the resource, go to the resource's "Keys and Endpoint" section.
+   - Copy the API key and endpoint URL.
+
+3. **Configure Copilot for Obsidian**:
+   - Open Obsidian and go to the Copilot settings.
+   - Navigate to the "API Settings" section.
+   - Enter your Azure OpenAI API key and endpoint URL in the respective fields.
+   - Save the settings.
+
+4. **Add Azure OpenAI deployment**:
+   - In the Copilot settings, go to the "Azure OpenAI Deployments" section.
+   - Click on "Add Azure OpenAI Deployment".
+   - Fill in the required fields, including the deployment name, instance name, API version, and API key.
+   - Save the deployment.
+
+5. **Test the configuration**:
+   - Use the Copilot chat window to test the Azure OpenAI integration.
+   - If you encounter any issues, double-check the settings and ensure that your Azure OpenAI resource is properly configured.
+
+By following these steps, you can successfully set up and use Azure OpenAI with Copilot for Obsidian.
