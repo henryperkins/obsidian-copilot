@@ -538,36 +538,6 @@ export function extractYoutubeUrl(text: string): string | null {
  * https://forum.obsidian.md/t/support-streaming-the-request-and-requesturl-response-body/87381 */
 
 // Polyfill for missing Response properties
-if (!Response.prototype.buffer) {
-  Object.defineProperty(Response.prototype, "buffer", {
-    value: async function () {
-      const text = await this.text();
-      return Buffer.from(text);
-    },
-  });
-}
-
-if (!Response.prototype.size) {
-  Object.defineProperty(Response.prototype, "size", {
-    get() {
-      return this.headers.get("content-length") ? parseInt(this.headers.get("content-length")!) : 0;
-    },
-  });
-}
-
-if (!Response.prototype.textConverted) {
-  Object.defineProperty(Response.prototype, "textConverted", {
-    value: async function () {
-      return this.text();
-    },
-  });
-}
-
-if (!Response.prototype.timeout) {
-  Object.defineProperty(Response.prototype, "timeout", {
-    value: 0, // Default timeout value
-  });
-}
 
 import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
 
@@ -618,11 +588,36 @@ export const safeFetch: CustomFetch = async (
   });
 
   // Create proper Response object without url property
-  return new Response(response.text, {
+  const nodeFetchResponse = new Response(response.text, {
     status: response.status,
     statusText: response.status.toString(),
     headers: new Headers(response.headers),
   });
+
+  // Polyfill missing properties
+  Object.defineProperties(nodeFetchResponse, {
+    buffer: {
+      value: async function () {
+        const text = await this.text();
+        return Buffer.from(text);
+      },
+    },
+    size: {
+      get() {
+        return this.headers.get("content-length") ? parseInt(this.headers.get("content-length")!) : 0;
+      },
+    },
+    textConverted: {
+      value: async function () {
+        return this.text();
+      },
+    },
+    timeout: {
+      value: 0, // Default timeout value
+    },
+  });
+
+  return nodeFetchResponse;
 };
 
 export function err2String(err: any, stack = false) {
