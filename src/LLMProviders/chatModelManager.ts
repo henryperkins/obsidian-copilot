@@ -143,7 +143,7 @@ export default class ChatModelManager {
         clientOptions: {
           // Required to bypass CORS restrictions
           defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
-          fetch: customModel.enableCors ? (asFetch(safeFetch) as CustomFetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as typeof fetch) : undefined,
         },
       },
       [ChatModelProviders.AZURE_OPENAI]: {
@@ -156,7 +156,7 @@ export default class ChatModelManager {
         ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? (asFetch(safeFetch) as unknown as Fetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as typeof fetch) : undefined,
         },
         // Validate parameters for o1-preview
         ...(isO1PreviewModel && {
