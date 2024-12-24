@@ -132,7 +132,7 @@ export default class ChatModelManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? (asFetch(safeFetch) as CustomFetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as unknown as Fetch) : undefined,
         },
         ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
       },
