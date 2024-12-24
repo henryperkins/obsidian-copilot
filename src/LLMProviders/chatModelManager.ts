@@ -102,6 +102,9 @@ export default class ChatModelManager {
       maxRetries: 3,
       maxConcurrency: 3,
       enableCors: customModel.enableCors,
+      azureOpenAIApiDeploymentName: settings.modelConfigs[modelKey]?.azureOpenAIApiDeploymentName || "",
+      azureOpenAIApiInstanceName: settings.modelConfigs[modelKey]?.azureOpenAIApiInstanceName || "",
+      azureOpenAIApiVersion: settings.modelConfigs[modelKey]?.azureOpenAIApiVersion || "",
     };
 
     const { maxTokens, temperature }: { maxTokens: number; temperature: number } = settings;
@@ -271,6 +274,9 @@ export default class ChatModelManager {
       maxRetries: 3,
       maxConcurrency: 3,
       enableCors: customModel.enableCors,
+      azureOpenAIApiDeploymentName: deployment.deploymentName,
+      azureOpenAIApiInstanceName: deployment.instanceName,
+      azureOpenAIApiVersion: deployment.apiVersion,
     };
 
     const azureConfig: ModelConfig = {

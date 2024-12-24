@@ -269,6 +269,24 @@ const ApiSettings: React.FC = () => {
             setValue={(value) => updateSetting("azureOpenAIApiEmbeddingDeploymentName", value)}
             placeholder="Enter Azure OpenAI API Embedding Deployment Name"
           />
+          <ApiSetting
+            title="Azure OpenAIApi Deployment Name"
+            value={settings.azureOpenAIApiDeploymentName}
+            setValue={(value) => updateSetting("azureOpenAIApiDeploymentName", value)}
+            placeholder="Enter Azure OpenAIApi Deployment Name"
+          />
+          <ApiSetting
+            title="Azure OpenAIApi Instance Name"
+            value={settings.azureOpenAIApiInstanceName}
+            setValue={(value) => updateSetting("azureOpenAIApiInstanceName", value)}
+            placeholder="Enter Azure OpenAIApi Instance Name"
+          />
+          <ApiSetting
+            title="Azure OpenAIApi Version"
+            value={settings.azureOpenAIApiVersion}
+            setValue={(value) => updateSetting("azureOpenAIApiVersion", value)}
+            placeholder="Enter Azure OpenAIApi Version"
+          />
           <h3>Azure OpenAI Deployments</h3>
           {Object.keys(getSettings().modelConfigs).length > 0 && (
             <>
