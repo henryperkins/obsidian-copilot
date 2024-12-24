@@ -2,9 +2,9 @@ import { ChainType } from "./chainFactory";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { CopilotSettings } from "./settings/model";
-
 import { atom, useAtom } from "jotai";
 import { getSettings, settingsAtom, settingsStore, updateSetting } from "./settings/model";
+import { ModelConfig } from "./types";
 
 const userModelKeyAtom = atom<string | null>(null);
 const modelKeyAtom = atom(
@@ -33,31 +33,6 @@ const chainTypeAtom = atom(
     set(userChainTypeAtom, newValue);
   }
 );
-
-export interface ModelConfig {
-  modelName: string;
-  temperature: number;
-  streaming: boolean;
-  maxRetries: number;
-  maxConcurrency: number;
-  maxCompletionTokens?: number;
-  maxTokens?: number; // Add this property
-  reasoningEffort?: "low" | "medium" | "high";
-  enableCors?: boolean;
-  azureOpenAIApiKey?: string;
-  azureOpenAIApiInstanceName?: string;
-  azureOpenAIApiDeploymentName?: string;
-  azureOpenAIApiVersion?: string;
-  configuration?: {
-    baseURL?: string;
-    fetch?: (url: string, options: RequestInit) => Promise<Response>;
-    dangerouslyAllowBrowser?: boolean;
-  };
-  presencePenalty?: number;
-  frequencyPenalty?: number;
-  logitBias?: Record<string, number>;
-  user?: string;
-}
 
 export interface SetChainOptions {
   prompt?: ChatPromptTemplate;

@@ -1,8 +1,12 @@
 import React from "react";
 import ApiSetting from "./ApiSetting";
 import { updateSetting, useSettingsValue } from "@/settings/model";
+import { CopilotPlugin } from "@/types";
 
-const CopilotPlusSettings: React.FC = () => {
+interface CopilotPlusSettingsProps {
+  plugin: CopilotPlugin;
+}
+const CopilotPlusSettings: React.FC<CopilotPlusSettingsProps> = ({ plugin }) => {
   const settings = useSettingsValue();
 
   return (

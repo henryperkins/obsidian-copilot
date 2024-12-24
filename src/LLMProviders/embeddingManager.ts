@@ -11,6 +11,7 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { Notice } from "obsidian";
+import { asFetch } from "@/types";
 
 type EmbeddingConstructorType = new (config: any) => Embeddings;
 
@@ -84,7 +85,7 @@ export default class EmbeddingManager {
     activeEmbeddingModels.forEach((model) => {
       if (model.enabled) {
         if (
-          !Object.values(EmbeddingModelProviders).contains(
+          !Object.values(EmbeddingModelProviders).includes(
             model.provider as EmbeddingModelProviders
           )
         ) {
@@ -165,7 +166,7 @@ export default class EmbeddingManager {
     const providerConfig: {
       [K in keyof EmbeddingProviderConstructorMap]: ConstructorParameters<
         EmbeddingProviderConstructorMap[K]
-      >[0] /*& Record<string, unknown>;*/;
+      >[0];
     } = {
       [EmbeddingModelProviders.OPENAI]: {
         modelName,
@@ -173,7 +174,7 @@ export default class EmbeddingManager {
         timeout: 10000,
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [EmbeddingModelProviders.COHEREAI]: {
@@ -191,7 +192,7 @@ export default class EmbeddingManager {
         azureOpenAIApiVersion: settings.azureOpenAIApiVersion,
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [EmbeddingModelProviders.OLLAMA]: {
@@ -204,7 +205,7 @@ export default class EmbeddingManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || "default-key"),
         configuration: {
           baseURL: customModel.baseUrl || "http://localhost:1234/v1",
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [EmbeddingModelProviders.OPENAI_FORMAT]: {
@@ -212,7 +213,7 @@ export default class EmbeddingManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || ""),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
           dangerouslyAllowBrowser: true,
         },
       },

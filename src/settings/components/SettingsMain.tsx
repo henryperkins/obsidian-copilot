@@ -2,7 +2,6 @@ import { ResetSettingsConfirmModal } from "@/components/modals/ResetSettingsConf
 import CopilotPlugin from "@/main";
 import { resetSettings } from "@/settings/model";
 import React from "react";
-import AdvancedSettings from "./AdvancedSettings";
 import ApiSettings from "./ApiSettings";
 import CopilotPlusSettings from "./CopilotPlusSettings";
 import GeneralSettings from "./GeneralSettings";
@@ -14,21 +13,16 @@ interface SettingsMainProps {
 
 const SettingsMain: React.FC<SettingsMainProps> = ({ plugin }) => {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h1 style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          Copilot Settings <small>v{plugin.manifest.version}</small>
-        </div>
-        <button onClick={() => new ResetSettingsConfirmModal(app, () => resetSettings()).open()}>
-          Reset to Default Settings
-        </button>
-      </h1>
-
-      <CopilotPlusSettings />
-      <GeneralSettings />
-      <ApiSettings />
-      <QASettings vectorStoreManager={plugin.vectorStoreManager} />
-      <AdvancedSettings />
+    <div>
+      <button
+        onClick={() => new ResetSettingsConfirmModal(plugin.app, () => resetSettings()).open()}
+      >
+        Reset to Default Settings
+      </button>
+      <CopilotPlusSettings plugin={plugin} />
+      <GeneralSettings plugin={plugin} />
+      <ApiSettings plugin={plugin} />
+      <QASettings vectorStoreManager={plugin.vectorStoreManager} plugin={plugin} />
     </div>
   );
 };

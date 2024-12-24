@@ -38,7 +38,21 @@ const context = await esbuild.context({
   sourcemap: prod ? false : "inline",
   treeShaking: true,
   outfile: "main.js",
-  plugins: [svgPlugin(), wasmPlugin],
+  plugins: [
+    svgPlugin(),
+    wasmPlugin,
+    {
+      name: "alias-path",
+      setup(build) {
+        build.onResolve({ filter: /^@\// }, async (args) => {
+          const path = args.path.replace(/^@\//, "");
+          return {
+            path: new URL(`./src/${path}`, import.meta.url).pathname,
+          };
+        });
+      },
+    },
+  ],
   define: {
     global: "window",
   },

@@ -6,6 +6,7 @@ import {
   VAULT_VECTOR_STORE_STRATEGIES,
 } from "@/constants";
 import VectorStoreManager from "@/search/vectorStoreManager";
+import { CopilotPlugin } from "@/types"; // Update import
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
 import {
@@ -18,9 +19,10 @@ import {
 
 interface QASettingsProps {
   vectorStoreManager: VectorStoreManager;
+  plugin: CopilotPlugin;
 }
 
-const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
+const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager, plugin }) => {
   const settings = useSettingsValue();
 
   const handleUpdateEmbeddingModels = (models: Array<CustomModel>) => {
@@ -34,7 +36,7 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
 
   const handleSetDefaultEmbeddingModel = async (modelKey: string) => {
     if (modelKey !== settings.embeddingModelKey) {
-      new RebuildIndexConfirmModal(app, async () => {
+      new RebuildIndexConfirmModal(plugin.app, async () => {
         updateSetting("embeddingModelKey", modelKey);
       }).open();
     }
@@ -43,7 +45,7 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
   const handlePartitionsChange = (value: string) => {
     const numValue = parseInt(value);
     if (numValue !== settings.numPartitions) {
-      new RebuildIndexConfirmModal(app, async () => {
+      new RebuildIndexConfirmModal(plugin.app, async () => {
         updateSetting("numPartitions", numValue);
         await vectorStoreManager.indexVaultToVectorStore(true);
       }).open();
@@ -66,7 +68,7 @@ const QASettings: React.FC<QASettingsProps> = ({ vectorStoreManager }) => {
       </p>
       <h2>Embedding Models</h2>
       <ModelSettingsComponent
-        app={app}
+        app={plugin.app}
         activeModels={settings.activeEmbeddingModels}
         onUpdateModels={handleUpdateEmbeddingModels}
         providers={Object.values(EmbeddingModelProviders)}

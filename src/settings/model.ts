@@ -11,19 +11,7 @@ import {
 } from "../constants";
 import { atom, createStore } from "jotai";
 import { useAtomValue } from "jotai";
-
-export interface AzureDeployment {
-  modelKey: string;
-  modelFamily: string; // Add this line
-  deploymentName: string; // This is the deployment name used for chatting (and embeddings if not overridden)
-  instanceName: string;
-  apiVersion: string;
-  apiKey: string;
-  specialSettings?: {
-    maxCompletionTokens?: number;
-    reasoningEffort?: "low" | "medium" | "high";
-  };
-}
+import { AzureDeployment } from "../types";
 
 export interface CopilotSettings {
   plusLicenseKey: string;
@@ -133,7 +121,7 @@ function isAzureDeployment(value: any): value is AzureDeployment {
   return (
     typeof value === "object" &&
     typeof value.modelKey === "string" &&
-    typeof value.modelFamily === "string" && // Add this check
+    typeof value.modelFamily === "string" &&
     typeof value.deploymentName === "string" &&
     typeof value.instanceName === "string" &&
     typeof value.apiVersion === "string" &&
@@ -233,7 +221,7 @@ function mergeAllActiveModelsWithCoreModels(settings: CopilotSettings): CopilotS
 function mergeActiveModels(
   existingActiveModels: CustomModel[],
   builtInModels: CustomModel[],
-  modelConfigs: Record<string, any>
+  modelConfigs: Record<string, ModelConfig>
 ): CustomModel[] {
   const modelMap: Map<string, CustomModel> = new Map<string, CustomModel>();
 

@@ -2,6 +2,7 @@ import { CustomModel } from "@/aiParams";
 import { ChainType } from "@/chainFactory";
 import { ChatModelProviders, DEFAULT_OPEN_AREA } from "@/constants";
 import { setSettings, updateSetting, useSettingsValue } from "@/settings/model";
+import { CopilotPlugin } from "@/types";
 import React from "react";
 import CommandToggleSettings from "./CommandToggleSettings";
 import {
@@ -11,7 +12,11 @@ import {
   ToggleComponent,
 } from "./SettingBlocks";
 
-const GeneralSettings: React.FC = () => {
+interface GeneralSettingsProps {
+  plugin: CopilotPlugin;
+}
+
+const GeneralSettings: React.FC<GeneralSettingsProps> = ({ plugin }) => {
   const settings = useSettingsValue();
 
   const handleUpdateModels = (models: Array<CustomModel>) => {
@@ -55,7 +60,7 @@ const GeneralSettings: React.FC = () => {
     <div>
       <h2>General Settings</h2>
       <ModelSettingsComponent
-        app={app}
+        app={plugin.app}
         activeModels={settings.activeModels}
         onUpdateModels={handleUpdateModels}
         providers={Object.values(ChatModelProviders)}

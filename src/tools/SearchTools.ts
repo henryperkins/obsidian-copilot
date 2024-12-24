@@ -18,6 +18,7 @@ const localSearchTool = tool(
     vectorStoreManager,
     chatModelManager,
     brevilabsClient,
+    app, // Add app parameter
   }: {
     timeRange?: { startTime: TimeInfo; endTime: TimeInfo };
     query: string;
@@ -25,6 +26,7 @@ const localSearchTool = tool(
     vectorStoreManager: VectorStoreManager;
     chatModelManager: ChatModelManager;
     brevilabsClient: BrevilabsClient;
+    app: any; // Add app type
   }) => {
     // Ensure VectorStoreManager is initialized
     await vectorStoreManager.waitForInitialization();
@@ -34,7 +36,7 @@ const localSearchTool = tool(
     }
 
     const embeddingsManager = EmbeddingsManager.getInstance();
-    const vault = app.vault;
+    const vault = app.vault; // Use passed app instance
     const embeddingInstance = embeddingsManager?.getEmbeddingsAPI();
 
     if (!embeddingInstance) {
@@ -98,6 +100,7 @@ const localSearchTool = tool(
       vectorStoreManager: z.any().describe("The VectorStoreManager instance"),
       chatModelManager: z.any().describe("The ChatModelManager instance"),
       brevilabsClient: z.any().describe("The BrevilabsClient instance"),
+      app: z.any().describe("The Obsidian App instance"), // Add app schema
     }),
   }
 );

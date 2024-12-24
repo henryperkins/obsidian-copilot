@@ -13,13 +13,13 @@ import {
 } from "../components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 import { updateSetting, useSettingsValue, type AzureDeployment } from "../../settings/model";
-import { ChatModels } from "../../constants";
+import { ChatModels } from "../../types";
+import { CopilotPlugin } from "@/types";
 
-// 1. Ensure that the keys in `modelKeyMap` match the values from `ChatModels`
 const modelKeyMap = {
   [ChatModels.GPT_4o]: "gpt-4o",
   [ChatModels.GPT_4o_mini]: "gpt-4o-mini",
-  [ChatModels.GPT_4_TURBO]: "gpt-4-turbo", // Added this to match ChatModels
+  [ChatModels.GPT_4_TURBO]: "gpt-4-turbo",
   [ChatModels.GEMINI_PRO]: "gemini-pro",
   [ChatModels.GEMINI_FLASH]: "gemini-flash",
   [ChatModels.AZURE_OPENAI]: "azure-openai",
@@ -29,7 +29,20 @@ const modelKeyMap = {
   [ChatModels.COMMAND_R_PLUS]: "command-r-plus",
 };
 
-const ApiSettings: React.FC = () => {
+const numericReasoningEffort = (value: string): number => {
+  const mapping = {
+    low: 1,
+    medium: 2,
+    high: 3,
+  };
+  return mapping[value as keyof typeof mapping] || 1;
+};
+
+interface ApiSettingsProps {
+  plugin: CopilotPlugin;
+}
+
+const ApiSettings: React.FC<ApiSettingsProps> = ({ plugin }) => {
   const settings = useSettingsValue();
 
   const [deploymentOverrides, setDeploymentOverrides] = useState<Record<number, boolean>>({});
@@ -238,11 +251,7 @@ const ApiSettings: React.FC = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {Object.values(ChatModels).map((model) => (
-                                <SelectItem
-                                  key={model}
-                                  // 2. Use a fallback if this model isn't found in modelKeyMap
-                                  value={modelKeyMap[model] || model}
-                                >
+                                <SelectItem key={model} value={modelKeyMap[model] || model}>
                                   {model}
                                 </SelectItem>
                               ))}
@@ -326,12 +335,12 @@ const ApiSettings: React.FC = () => {
                             <div className="space-y-2">
                               <Label htmlFor={`reasoningEffort-${index}`}>Reasoning Effort</Label>
                               <Select
-                                value={deployment.specialSettings?.reasoningEffort || ""}
+                                value={String(deployment.specialSettings?.reasoningEffort || "")}
                                 onValueChange={(value) => {
                                   const newDeployments = [...azureDeployments];
                                   newDeployments[index].specialSettings = {
                                     ...newDeployments[index].specialSettings,
-                                    reasoningEffort: value as "low" | "medium" | "high",
+                                    reasoningEffort: numericReasoningEffort(value),
                                   };
                                   setAzureDeployments(newDeployments);
                                 }}

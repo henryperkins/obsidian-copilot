@@ -1,5 +1,6 @@
-import { CustomModel, ModelConfig, getModelKey, setModelKey } from "src/aiParams";
+import { CustomModel, getModelKey, setModelKey } from "src/aiParams";
 import { BUILTIN_CHAT_MODELS, ChatModelProviders } from "src/constants";
+import { ModelConfig, asFetch } from "../types";
 import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
 import { ChatCohere } from "@langchain/cohere";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
@@ -13,7 +14,7 @@ import { ChatAnthropic } from "@langchain/anthropic";
 import { getDecryptedKey } from "../encryptionService";
 import { getSettings, subscribeToSettingsChange } from "../settings/model";
 import { CopilotSettings } from "../settings/model";
-import { AzureDeployment } from "../settings/model";
+import { AzureDeployment } from "../types";
 
 type ChatConstructorType = new (config: any) => BaseChatModel;
 
@@ -102,7 +103,8 @@ export default class ChatModelManager {
       maxRetries: 3,
       maxConcurrency: 3,
       enableCors: customModel.enableCors,
-      azureOpenAIApiDeploymentName: settings.modelConfigs[modelKey]?.azureOpenAIApiDeploymentName || "",
+      azureOpenAIApiDeploymentName:
+        settings.modelConfigs[modelKey]?.azureOpenAIApiDeploymentName || "",
       azureOpenAIApiInstanceName: settings.modelConfigs[modelKey]?.azureOpenAIApiInstanceName || "",
       azureOpenAIApiVersion: settings.modelConfigs[modelKey]?.azureOpenAIApiVersion || "",
     };
@@ -129,9 +131,9 @@ export default class ChatModelManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
-        ...this.handleOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
+        ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
       },
       [ChatModelProviders.ANTHROPIC]: {
         anthropicApiKey: getDecryptedKey(customModel.apiKey || settings.anthropicApiKey),
@@ -140,7 +142,7 @@ export default class ChatModelManager {
         clientOptions: {
           // Required to bypass CORS restrictions
           defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [ChatModelProviders.AZURE_OPENAI]: {
@@ -153,7 +155,7 @@ export default class ChatModelManager {
         ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
         // Validate parameters for o1-preview
         ...(isO1PreviewModel && {
@@ -208,7 +210,7 @@ export default class ChatModelManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || settings.openRouterAiApiKey),
         configuration: {
           baseURL: customModel.baseUrl || "https://openrouter.ai/api/v1",
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [ChatModelProviders.GROQ]: {
@@ -228,7 +230,7 @@ export default class ChatModelManager {
         openAIApiKey: customModel.apiKey || "default-key",
         configuration: {
           baseURL: customModel.baseUrl || "http://localhost:1234/v1",
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
         },
       },
       [ChatModelProviders.OPENAI_FORMAT]: {
@@ -236,10 +238,10 @@ export default class ChatModelManager {
         openAIApiKey: getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? safeFetch : undefined,
+          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
           dangerouslyAllowBrowser: true,
         },
-        ...this.handleOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
+        ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
       },
     };
 
@@ -287,7 +289,7 @@ export default class ChatModelManager {
       azureOpenAIApiVersion: deployment.apiVersion,
       configuration: {
         baseURL: customModel.baseUrl,
-        fetch: customModel.enableCors ? safeFetch : undefined,
+        fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
       },
     };
 
@@ -317,37 +319,13 @@ export default class ChatModelManager {
     return this.getModelConfig(model);
   }
 
-  private handleOpenAIExtraArgs(
-    isO1PreviewModel: boolean,
-    maxTokens: number,
-    temperature: number
-  ): Record<string, any> {
-    const modelConfig: ModelConfig | undefined = getSettings().modelConfigs[getModelKey()];
-
-    if (isO1PreviewModel) {
-      return {
-        maxCompletionTokens: maxTokens,
-        temperature: 1,
-        extraParams: {
-          ...(modelConfig?.reasoningEffort && {
-            reasoning_effort: modelConfig.reasoningEffort,
-          }),
-        },
-      };
-    }
-
-    return {
-      maxTokens,
-      temperature,
-    };
-  }
-
   private handleAzureOpenAIExtraArgs(
     isO1PreviewModel: boolean,
     maxTokens: number,
     temperature: number
   ): Record<string, any> {
     const modelConfig: ModelConfig | undefined = getSettings().modelConfigs[getModelKey()];
+
     if (isO1PreviewModel) {
       return {
         maxCompletionTokens: maxTokens,
@@ -503,35 +481,36 @@ export default class ChatModelManager {
           : this.getModelConfig(modelToTest);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { streaming, temperature, ...pingConfig }: ModelConfig = modelConfig;
-      pingConfig.maxTokens = 10;
+      const testModel = new (this.getProviderConstructor(model))({ ...pingConfig });
 
-      const testModel: BaseChatModel = new (this.getProviderConstructor(modelToTest))(pingConfig);
-      await testModel.invoke([{ role: "user", content: "hello" }], {
-        timeout: 3000,
-      });
+      try {
+        await testModel.invoke([{ role: "user", content: "ping" }]);
+      } catch (error) {
+        console.error("Ping failed:", error);
+        throw error;
+      }
     };
 
     try {
-      // First try without CORS
-      await tryPing(false);
+      await tryPing(model.enableCors ?? true);
       return true;
     } catch (error) {
-      console.log("First ping attempt failed, trying with CORS...");
-      try {
-        // Second try with CORS
-        await tryPing(true);
-        new Notice(
-          "Connection successful, but requires CORS to be enabled. Please enable CORS for this model once you add it above."
-        );
-        return true;
-      } catch (error) {
-        console.error("Chat model ping failed:", error);
-        throw error;
+      if (model.enableCors) {
+        try {
+          await tryPing(false);
+          console.warn("Ping succeeded without CORS. Consider disabling CORS for this model.");
+          return true;
+        } catch (errorWithoutCors) {
+          console.error("Ping failed without CORS:", errorWithoutCors);
+          return false;
+        }
+      } else {
+        console.error("Ping failed:", error);
+        return false;
       }
     }
   }
 
-  // Helper method to find a custom model based on the modelKey
   private findCustomModel(modelKey: string, models: CustomModel[]): CustomModel | undefined {
     return models.find((model: CustomModel) => `${model.name}|${model.provider}` === modelKey);
   }
