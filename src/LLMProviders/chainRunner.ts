@@ -1,4 +1,5 @@
 import { ABORT_REASON, AI_SENDER, EMPTY_INDEX_ERROR_MESSAGE, LOADING_MESSAGES } from "@/constants";
+import { getModelKey } from "@/aiParams";
 import { getSystemPrompt } from "@/settings/model";
 import { ChatMessage } from "@/sharedState";
 import { ToolManager } from "@/tools/toolManager";
@@ -22,6 +23,7 @@ export interface ChainRunner {
       debug?: boolean;
       ignoreSystemMessage?: boolean;
       updateLoading?: (loading: boolean) => void;
+      updateLoadingMessage?: (message: string) => void;
     }
   ): Promise<string>;
 }
@@ -38,6 +40,7 @@ abstract class BaseChainRunner implements ChainRunner {
       debug?: boolean;
       ignoreSystemMessage?: boolean;
       updateLoading?: (loading: boolean) => void;
+      updateLoadingMessage?: (message: string) => void;
     }
   ): Promise<string>;
 
@@ -49,7 +52,7 @@ abstract class BaseChainRunner implements ChainRunner {
     updateCurrentAiMessage: (message: string) => void,
     debug: boolean,
     sources?: { title: string; score: number }[]
-  ) {
+  ): Promise<string> {
     if (fullAIResponse && abortController.signal.reason !== ABORT_REASON.NEW_CHAT) {
       await this.chainManager.memoryManager
         .getMemory()
@@ -81,7 +84,7 @@ abstract class BaseChainRunner implements ChainRunner {
     debug: boolean,
     addMessage?: (message: ChatMessage) => void,
     updateCurrentAiMessage?: (message: string) => void
-  ) {
+  ): Promise<void> {
     if (debug) console.error("Error during LLM invocation:", error);
     const errorData = error?.response?.data?.error || error;
     const errorCode = errorData?.code || error;
@@ -130,23 +133,28 @@ class LLMChainRunner extends BaseChainRunner {
     try {
       const chain = ChainManager.getChain();
       const chatModel = this.chainManager.chatModelManager.getChatModel();
-      const modelConfig = this.chainManager.chatModelManager.getModelConfig(chatModel);
+      const modelConfig =
+        this.chainManager.chatModelManager.getChatModelConfiguration(getModelKey());
+      const memory = this.chainManager.memoryManager.getMemory();
+      const memoryVariables = await memory.loadMemoryVariables({});
 
       if (modelConfig.streaming) {
         const chatStream = await chain.stream({
+          history: memoryVariables.history,
           input: userMessage.message,
         } as any);
 
         for await (const chunk of chatStream) {
           if (abortController.signal.aborted) break;
-          fullAIResponse += chunk.content;
-          updateCurrentAiMessage(fullAIResponse);
+          const content = typeof chunk === "string" ? chunk : chunk.content;
+          if (typeof content === "string") {
+            fullAIResponse += content;
+            updateCurrentAiMessage(fullAIResponse);
+          }
         }
       } else {
-        const response = await chatModel.call({
-          input: userMessage.message,
-        });
-        fullAIResponse = response;
+        const response = await chatModel.invoke([{ role: "user", content: userMessage.message }]);
+        fullAIResponse = typeof response.content === "string" ? response.content : "";
       }
     } catch (error) {
       await this.handleError(error, debug, addMessage, updateCurrentAiMessage);
@@ -202,8 +210,11 @@ class VaultQAChainRunner extends BaseChainRunner {
 
       for await (const chunk of qaStream) {
         if (abortController.signal.aborted) break;
-        fullAIResponse += chunk.content;
-        updateCurrentAiMessage(fullAIResponse);
+        const content = typeof chunk === "string" ? chunk : chunk.content;
+        if (typeof content === "string") {
+          fullAIResponse += content;
+          updateCurrentAiMessage(fullAIResponse);
+        }
       }
 
       fullAIResponse = this.addSourcestoResponse(fullAIResponse);
@@ -227,9 +238,9 @@ class VaultQAChainRunner extends BaseChainRunner {
       const markdownLinks = docTitles
         .map(
           (title) =>
-            `- [${title}](obsidian://open?vault=${encodeURIComponent(this.chainManager.app.vault.getName())}&file=${encodeURIComponent(
-              title
-            )})`
+            `- [${title}](obsidian://open?vault=${encodeURIComponent(
+              this.chainManager.app.vault.getName()
+            )}&file=${encodeURIComponent(title)})`
         )
         .join("\n");
       response += "\n\n#### Sources:\n" + markdownLinks;
@@ -318,12 +329,31 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     }
 
     let fullAIResponse = "";
-    const chatStream = await this.chainManager.chatModelManager.getChatModel().stream(messages);
+    const chatModel = this.chainManager.chatModelManager.getChatModel();
+    const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
+    const isO1PreviewModel = modelName === "o1-preview";
+    const chatStream = await chatModel.stream(messages);
 
-    for await (const chunk of chatStream) {
-      if (abortController.signal.aborted) break;
-      fullAIResponse += chunk.content;
-      updateCurrentAiMessage(fullAIResponse);
+    if (isO1PreviewModel) {
+      // Handle non-streaming for o1-preview
+      for await (const chunk of chatStream) {
+        if (abortController.signal.aborted) break;
+        const content = typeof chunk === "string" ? chunk : chunk.content;
+        if (typeof content === "string") {
+          fullAIResponse += content;
+          updateCurrentAiMessage(fullAIResponse);
+        }
+      }
+    } else {
+      // Handle streaming for other models
+      for await (const chunk of chatStream) {
+        if (abortController.signal.aborted) break;
+        const content = typeof chunk === "string" ? chunk : chunk.content;
+        if (typeof content === "string") {
+          fullAIResponse += content;
+          updateCurrentAiMessage(fullAIResponse);
+        }
+      }
     }
 
     return fullAIResponse;
@@ -384,7 +414,7 @@ class CopilotPlusChainRunner extends BaseChainRunner {
       }
 
       if (debug) console.log("==== Step 1: Analyzing intent ====");
-      let toolCalls;
+      let toolCalls: any[];
       try {
         // Use the original message for intent analysis
         const messageForAnalysis = userMessage.originalMessage || userMessage.message;
@@ -414,59 +444,39 @@ class CopilotPlusChainRunner extends BaseChainRunner {
 
       const toolOutputs = await this.executeToolCalls(toolCalls, debug, updateLoadingMessage);
       const localSearchResult = toolOutputs.find(
-        (output) => output.tool === "localSearch" && output.output && output.output.length > 0
+        (output: { tool: string; output: any }) =>
+          output.tool === "localSearch" && output.output && output.output.length > 0
       );
 
       if (localSearchResult) {
         if (debug) console.log("==== Step 2: Processing local search results ====");
         const documents = JSON.parse(localSearchResult.output);
 
-        // Format chat history from memory
-        const memory = this.chainManager.memoryManager.getMemory();
-        const memoryVariables = await memory.loadMemoryVariables({});
-        const chatHistory = extractChatHistory(memoryVariables);
+        if (debug) console.log("==== Step 3: Invoking Retrieval Chain ====");
 
-        if (debug) console.log("==== Step 3: Condensing Question ====");
-        const standaloneQuestion = await this.getStandaloneQuestion(
-          cleanedUserMessage,
-          chatHistory
-        );
-        if (debug) console.log("Condensed standalone question: ", standaloneQuestion);
+        // Invoke the retrieval chain with the documents
+        const retrievalStream = await ChainManager.getRetrievalChain().stream({
+          question: cleanedUserMessage, // Use the cleaned message for retrieval
+          chat_history: [], // No chat history in this example, adjust as needed
+        } as any);
 
-        if (debug) console.log("==== Step 4: Preparing context ====");
-        const timeExpression = this.getTimeExpression(toolCalls);
-        const context = this.formatLocalSearchResult(documents, timeExpression);
-
-        const currentTimeOutputs = toolOutputs.filter((output) => output.tool === "getCurrentTime");
-        const enhancedQuestion = this.prepareEnhancedUserMessage(
-          standaloneQuestion,
-          currentTimeOutputs
-        );
-
-        if (debug) console.log(context);
-        if (debug) console.log("==== Step 5: Invoking QA Chain ====");
-        const qaPrompt = await this.chainManager.promptManager.getQAPrompt({
-          question: enhancedQuestion,
-          context: context,
-          systemMessage: "", // System prompt is added separately in streamMultimodalResponse
-        });
-
-        fullAIResponse = await this.streamMultimodalResponse(
-          qaPrompt,
-          userMessage,
-          abortController,
-          updateCurrentAiMessage,
-          debug
-        );
+        for await (const chunk of retrievalStream) {
+          if (abortController.signal.aborted) break;
+          const content = typeof chunk === "string" ? chunk : chunk.content;
+          if (typeof content === "string") {
+            fullAIResponse += content;
+            updateCurrentAiMessage(fullAIResponse);
+          }
+        }
 
         // Append sources to the response
         sources = this.getSources(documents);
       } else {
+        // Existing behavior if no local search results
         const enhancedUserMessage = this.prepareEnhancedUserMessage(
           cleanedUserMessage,
           toolOutputs
         );
-        // If no results, default to LLM Chain
         if (debug) {
           console.log("No local search results. Using standard LLM Chain.");
           console.log("Enhanced user message:", enhancedUserMessage);
@@ -530,7 +540,7 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     return response.content as string;
   }
 
-  private getSources(documents: any): { title: string; score: number }[] {
+  private getSources(documents: any[]): { title: string; score: number }[] {
     if (!documents || !Array.isArray(documents)) {
       console.warn("No valid documents provided to getSources");
       return [];
@@ -570,8 +580,8 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     toolCalls: any[],
     debug: boolean,
     updateLoadingMessage?: (message: string) => void
-  ) {
-    const toolOutputs = [];
+  ): Promise<{ tool: string; output: any }[]> {
+    const toolOutputs: { tool: string; output: any }[] = [];
     for (const toolCall of toolCalls) {
       if (debug) {
         console.log(`==== Step 2: Calling tool: ${toolCall.tool.name} ====`);
@@ -587,7 +597,10 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     return toolOutputs;
   }
 
-  private prepareEnhancedUserMessage(userMessage: string, toolOutputs: any[]) {
+  private prepareEnhancedUserMessage(
+    userMessage: string,
+    toolOutputs: { tool: string; output: any }[]
+  ): string {
     let context = "";
     if (toolOutputs.length > 0) {
       const validOutputs = toolOutputs.filter((output) => output.output != null);
@@ -603,13 +616,13 @@ class CopilotPlusChainRunner extends BaseChainRunner {
   }
 
   private getTimeExpression(toolCalls: any[]): string {
-    const timeRangeCall = toolCalls.find((call) => call.tool.name === "getTimeRangeMs");
+    const timeRangeCall = toolCalls.find((call: any) => call.tool.name === "getTimeRangeMs");
     return timeRangeCall ? timeRangeCall.args.timeExpression : "";
   }
 
   private formatLocalSearchResult(documents: any[], timeExpression: string): string {
     const formattedDocs = documents
-      .filter((doc) => doc.includeInContext)
+      .filter((doc: any) => doc.includeInContext)
       .map((doc: any) => `Note in Vault: ${doc.content}`)
       .join("\n\n");
     return timeExpression

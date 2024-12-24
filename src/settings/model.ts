@@ -1,14 +1,28 @@
-import { CustomModel, ModelConfig } from "@/aiParams";
-import { atom, createStore, useAtomValue } from "jotai";
-
-import { type ChainType } from "@/chainFactory";
+// In settings/model.ts
+import { CustomModel, ModelConfig } from "../aiParams";
+import { ChainType } from "../chainFactory";
 import {
   BUILTIN_CHAT_MODELS,
   BUILTIN_EMBEDDING_MODELS,
   DEFAULT_OPEN_AREA,
-  DEFAULT_SETTINGS,
   DEFAULT_SYSTEM_PROMPT,
-} from "@/constants";
+  DEFAULT_SETTINGS,
+  VAULT_VECTOR_STORE_STRATEGY,
+} from "../constants";
+import { atom, createStore } from "jotai";
+import { useAtomValue } from "jotai";
+
+export interface AzureDeployment {
+  modelKey: string;
+  deploymentName: string;
+  instanceName: string;
+  apiVersion: string;
+  apiKey: string;
+  specialSettings?: {
+    maxCompletionTokens?: number;
+    reasoningEffort?: "low" | "medium" | "high";
+  };
+}
 
 export interface CopilotSettings {
   plusLicenseKey: string;
@@ -17,11 +31,11 @@ export interface CopilotSettings {
   huggingfaceApiKey: string;
   cohereApiKey: string;
   anthropicApiKey: string;
+  modelConfigs: Record<string, ModelConfig>;
   azureOpenAIApiKey: string;
   azureOpenAIApiInstanceName: string;
-  azureOpenAIApiDeploymentName: string;
-  azureOpenAIApiVersion: string;
   azureOpenAIApiEmbeddingDeploymentName: string;
+  azureOpenAIApiVersion: string;
   googleApiKey: string;
   openRouterAiApiKey: string;
   defaultChainType: ChainType;
@@ -30,7 +44,6 @@ export interface CopilotSettings {
   temperature: number;
   maxTokens: number;
   contextTurns: number;
-  // Do not use this directly, use getSystemPrompt() instead
   userSystemPrompt: string;
   openAIProxyBaseUrl: string;
   openAIEmbeddingProxyBaseUrl: string;
@@ -38,34 +51,27 @@ export interface CopilotSettings {
   defaultSaveFolder: string;
   defaultConversationTag: string;
   autosaveChat: boolean;
+  defaultOpenArea: DEFAULT_OPEN_AREA;
   customPromptsFolder: string;
-  indexVaultToVectorStore: string;
+  indexVaultToVectorStore: VAULT_VECTOR_STORE_STRATEGY;
+  qaExclusions: string;
+  qaInclusions: string;
   chatNoteContextPath: string;
   chatNoteContextTags: string[];
   enableIndexSync: boolean;
   debug: boolean;
   enableEncryption: boolean;
   maxSourceChunks: number;
-  qaExclusions: string;
-  qaInclusions: string;
   groqApiKey: string;
-  enabledCommands: Record<string, { enabled: boolean; name: string }>;
   activeModels: Array<CustomModel>;
   activeEmbeddingModels: Array<CustomModel>;
   promptUsageTimestamps: Record<string, number>;
   embeddingRequestsPerSecond: number;
-  defaultOpenArea: DEFAULT_OPEN_AREA;
   disableIndexOnMobile: boolean;
   showSuggestedPrompts: boolean;
   numPartitions: number;
-  modelConfigs: Record<string, ModelConfig>;
-  maxCompletionTokens?: number;
-  azureOpenAIApiDeployments: Array<{
-    deploymentName: string;
-    instanceName: string;
-    apiKey: string;
-    apiVersion: string;
-  }>;
+  enabledCommands: Record<string, { enabled: boolean; name: string }>;
+  azureOpenAIApiDeployments: AzureDeployment[];
 }
 
 export const settingsStore = createStore();
@@ -74,17 +80,63 @@ export const settingsAtom = atom<CopilotSettings>(DEFAULT_SETTINGS);
 /**
  * Sets the settings in the atom.
  */
-export function setSettings(settings: Partial<CopilotSettings>) {
-  const newSettings = mergeAllActiveModelsWithCoreModels({ ...getSettings(), ...settings });
+export function setSettings(settings: Partial<CopilotSettings>): void {
+  const newSettings: CopilotSettings = mergeAllActiveModelsWithCoreModels({
+    ...getSettings(),
+    ...settings,
+  });
   settingsStore.set(settingsAtom, newSettings);
 }
 
 /**
  * Sets a single setting in the atom.
  */
-export function updateSetting<K extends keyof CopilotSettings>(key: K, value: CopilotSettings[K]) {
-  const settings = getSettings();
-  setSettings({ ...settings, [key]: value });
+export function updateSetting<K extends keyof CopilotSettings>(
+  key: K,
+  value: CopilotSettings[K]
+): void {
+  const settings: CopilotSettings = getSettings();
+
+  if (key === "azureOpenAIApiDeployments") {
+    // Add type checking with type assertion
+    if (Array.isArray(value)) {
+      const deployments: unknown[] = value;
+      if (deployments.every((item): item is AzureDeployment => isAzureDeployment(item))) {
+        setSettings({ ...settings, azureOpenAIApiDeployments: deployments });
+      } else {
+        console.error("Invalid Azure deployment configuration");
+      }
+    }
+  } else if (key === "modelConfigs") {
+    // Ensure deep merge for modelConfigs
+    const newModelConfigs: Record<string, ModelConfig> = {
+      ...settings.modelConfigs,
+      ...(value as Record<string, ModelConfig>),
+    };
+    setSettings({ ...settings, modelConfigs: newModelConfigs });
+  } else if (key === "enabledCommands") {
+    // Ensure deep merge for enabledCommands
+    const newEnabledCommands: Record<string, { enabled: boolean; name: string }> = {
+      ...settings.enabledCommands,
+      ...(value as Record<string, { enabled: boolean; name: string }>),
+    };
+    setSettings({ ...settings, enabledCommands: newEnabledCommands });
+  } else {
+    // For other keys, update as before
+    setSettings({ ...settings, [key]: value });
+  }
+}
+
+// Type guard remains the same
+function isAzureDeployment(value: any): value is AzureDeployment {
+  return (
+    typeof value === "object" &&
+    typeof value.modelKey === "string" &&
+    typeof value.deploymentName === "string" &&
+    typeof value.instanceName === "string" &&
+    typeof value.apiVersion === "string" &&
+    typeof value.apiKey === "string"
+  );
 }
 
 /**
@@ -99,10 +151,13 @@ export function getSettings(): Readonly<CopilotSettings> {
  * Resets the settings to the default values.
  */
 export function resetSettings(): void {
-  const defaultSettingsWithBuiltIns = {
+  const defaultSettingsWithBuiltIns: CopilotSettings = {
     ...DEFAULT_SETTINGS,
-    activeModels: BUILTIN_CHAT_MODELS.map((model) => ({ ...model, enabled: true })),
-    activeEmbeddingModels: BUILTIN_EMBEDDING_MODELS.map((model) => ({ ...model, enabled: true })),
+    activeModels: BUILTIN_CHAT_MODELS.map((model: CustomModel) => ({ ...model, enabled: true })),
+    activeEmbeddingModels: BUILTIN_EMBEDDING_MODELS.map((model: CustomModel) => ({
+      ...model,
+      enabled: true,
+    })),
   };
   setSettings(defaultSettingsWithBuiltIns);
 }
@@ -129,7 +184,7 @@ export function useSettingsValue(): Readonly<CopilotSettings> {
  */
 export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   // If settings is null/undefined, use DEFAULT_SETTINGS
-  const settingsToSanitize = settings || DEFAULT_SETTINGS;
+  const settingsToSanitize: CopilotSettings = settings || DEFAULT_SETTINGS;
   const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
 
   // Stuff in settings are string even when the interface has number type!
@@ -144,47 +199,62 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     ? DEFAULT_SETTINGS.contextTurns
     : contextTurns;
 
+  // Sanitize Azure deployments
+  sanitizedSettings.azureOpenAIApiDeployments = (
+    settingsToSanitize.azureOpenAIApiDeployments || []
+  ).filter((deployment: AzureDeployment): deployment is AzureDeployment =>
+    Boolean(deployment.modelKey && deployment.deploymentName && deployment.apiKey)
+  );
+
   return sanitizedSettings;
 }
 
 export function getSystemPrompt(): string {
-  const userPrompt = getSettings().userSystemPrompt;
+  const userPrompt: string = getSettings().userSystemPrompt;
   return userPrompt ? `${DEFAULT_SYSTEM_PROMPT}\n\n${userPrompt}` : DEFAULT_SYSTEM_PROMPT;
 }
 
 function mergeAllActiveModelsWithCoreModels(settings: CopilotSettings): CopilotSettings {
-  settings.activeModels = mergeActiveModels(settings.activeModels, BUILTIN_CHAT_MODELS);
+  settings.activeModels = mergeActiveModels(
+    settings.activeModels,
+    BUILTIN_CHAT_MODELS,
+    settings.modelConfigs
+  );
   settings.activeEmbeddingModels = mergeActiveModels(
     settings.activeEmbeddingModels,
-    BUILTIN_EMBEDDING_MODELS
+    BUILTIN_EMBEDDING_MODELS,
+    settings.modelConfigs
   );
   return settings;
 }
 
 function mergeActiveModels(
   existingActiveModels: CustomModel[],
-  builtInModels: CustomModel[]
+  builtInModels: CustomModel[],
+  modelConfigs: Record<string, any>
 ): CustomModel[] {
-  const modelMap = new Map<string, CustomModel>();
+  const modelMap: Map<string, CustomModel> = new Map<string, CustomModel>();
 
   // Create a unique key for each model, it's model (name + provider)
-  const getModelKey = (model: CustomModel) => `${model.name}|${model.provider}`;
+  const getModelKey = (model: CustomModel): string => `${model.name}|${model.provider}`;
 
-  // Add or update existing models in the map
-  existingActiveModels.forEach((model) => {
-    const key = getModelKey(model);
-    modelMap.set(key, model);
+  // Add or update existing models in the map, prioritizing custom settings
+  existingActiveModels.forEach((model: CustomModel) => {
+    const key: string = getModelKey(model);
+    modelMap.set(key, {
+      ...builtInModels.find((m: CustomModel) => getModelKey(m) === key), // Default to built-in model settings
+      ...model, // Override with existing custom model settings
+      ...modelConfigs[key], // Override with custom model config
+    });
   });
 
-  // Add core models to the map, prioritizing custom settings over core settings
-  builtInModels
-    .filter((model) => model.core)
-    .forEach((model) => {
-      const key = getModelKey(model);
-      if (!modelMap.has(key)) {
-        modelMap.set(key, { ...model, core: true });
-      }
-    });
+  // Add core models to the map, only if they don't already exist
+  builtInModels.forEach((model: CustomModel) => {
+    const modelKey: string = getModelKey(model);
+    if (!modelMap.has(modelKey)) {
+      modelMap.set(modelKey, { ...model, core: true });
+    }
+  });
 
   return Array.from(modelMap.values());
 }

@@ -96,5 +96,13 @@
   },
   "directories": {
     "test": "tests"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/henryperkins/obsidian-copilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/henryperkins/obsidian-copilot/issues"
+  },
+  "homepage": "https://github.com/henryperkins/obsidian-copilot#readme"
 }

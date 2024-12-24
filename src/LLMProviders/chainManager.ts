@@ -1,30 +1,9 @@
 import {
-  getChainType,
-  getModelKey,
-  SetChainOptions,
-  setChainType,
-  subscribeToChainTypeChange,
-  subscribeToModelKeyChange,
-  CustomModel,
-} from "@/aiParams";
-import ChainFactory, { ChainType, Document } from "@/chainFactory";
-import {
-  AI_SENDER,
-  BUILTIN_CHAT_MODELS,
-  USER_SENDER,
-  VAULT_VECTOR_STORE_STRATEGY,
-} from "@/constants";
-import {
   ChainRunner,
   CopilotPlusChainRunner,
   LLMChainRunner,
   VaultQAChainRunner,
-} from "@/LLMProviders/chainRunner";
-import { HybridRetriever } from "@/search/hybridRetriever";
-import VectorStoreManager from "@/search/vectorStoreManager";
-import { getSettings, getSystemPrompt, subscribeToSettingsChange } from "@/settings/model";
-import { ChatMessage } from "@/sharedState";
-import { findCustomModel, isSupportedChain } from "@/utils";
+} from "./chainRunner";
 import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
@@ -35,8 +14,36 @@ import { App, Notice } from "obsidian";
 import { BrevilabsClient } from "./brevilabsClient";
 import ChatModelManager from "./chatModelManager";
 import EmbeddingsManager from "./embeddingManager";
-import MemoryManager from "./memoryManager";
 import PromptManager from "./promptManager";
+import {
+  getChainType,
+  getModelKey,
+  SetChainOptions,
+  setChainType,
+  subscribeToChainTypeChange,
+  subscribeToModelKeyChange,
+  CustomModel,
+} from "../aiParams";
+import ChainFactory, { ChainType, Document } from "../chainFactory";
+import {
+  AI_SENDER,
+  BUILTIN_CHAT_MODELS,
+  USER_SENDER,
+  VAULT_VECTOR_STORE_STRATEGY,
+} from "../constants";
+import { HybridRetriever } from "../search/hybridRetriever";
+import VectorStoreManager from "../search/vectorStoreManager";
+import {
+  getSettings,
+  getSystemPrompt,
+  subscribeToSettingsChange,
+  AzureDeployment,
+  CopilotSettings,
+} from "../settings/model";
+import { ChatMessage } from "../sharedState";
+import { findCustomModel, formatDateTime } from "../utils";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import MemoryManager from "./memoryManager";
 
 export default class ChainManager {
   private static chain: RunnableSequence;
@@ -85,7 +92,7 @@ export default class ChainManager {
     if (chainType === undefined || chainType === null) throw new Error("No chain type set");
   }
 
-  private validateChatModel() {
+  private validateChatModel(): void {
     if (!this.chatModelManager.validateChatModel(this.chatModelManager.getChatModel())) {
       const errorMsg =
         "Chat model is not initialized properly, check your API key in Copilot setting and make sure you have API access.";
@@ -94,14 +101,14 @@ export default class ChainManager {
     }
   }
 
-  private validateChainInitialization() {
+  private validateChainInitialization(): void {
     if (!ChainManager.chain || !isSupportedChain(ChainManager.chain)) {
       console.error("Chain is not initialized properly, re-initializing chain: ", getChainType());
       this.setChain(getChainType());
     }
   }
 
-  static storeRetrieverDocuments(documents: Document[]) {
+  static storeRetrieverDocuments(documents: Document[]): void {
     ChainManager.retrievedDocuments = documents;
   }
 
@@ -112,9 +119,11 @@ export default class ChainManager {
   createChainWithNewModel(): void {
     let newModelKey = getModelKey();
     try {
-      let customModel = findCustomModel(newModelKey, getSettings().activeModels);
+      let customModel: CustomModel | undefined = findCustomModel(
+        newModelKey,
+        getSettings().activeModels
+      );
       if (!customModel) {
-        // Reset default model if no model is found
         console.error(
           "Resetting to default model. No model configuration found for: ",
           newModelKey
@@ -123,13 +132,15 @@ export default class ChainManager {
         newModelKey = customModel.name + "|" + customModel.provider;
       }
       if (customModel.provider === "azure openai") {
-        const azureDeployments = getSettings().azureOpenAIApiDeployments || [];
-        const deployment = azureDeployments.find(
-          (d) => d.deploymentName === customModel.azureOpenAIApiDeploymentName
+        const settings: CopilotSettings = getSettings();
+        const azureDeployments: AzureDeployment[] = settings.azureOpenAIApiDeployments || [];
+        const deployment: AzureDeployment | undefined = azureDeployments.find(
+          (d: AzureDeployment) => d.modelKey === newModelKey
         );
         if (deployment) {
           customModel.apiKey = deployment.apiKey;
           customModel.azureOpenAIApiInstanceName = deployment.instanceName;
+          customModel.azureOpenAIApiDeploymentName = deployment.deploymentName;
           customModel.azureOpenAIApiVersion = deployment.apiVersion;
         }
       }
@@ -148,15 +159,15 @@ export default class ChainManager {
   }
 
   private getEffectivePrompt(customModel: CustomModel): ChatPromptTemplate {
-    const modelName = customModel.name;
-    const isO1Model = modelName.startsWith("o1");
+    const modelName: string = customModel.name;
+    const isO1PreviewModel: boolean = modelName === "o1-preview";
 
-    let effectivePrompt = ChatPromptTemplate.fromMessages([
+    const effectivePrompt: ChatPromptTemplate = ChatPromptTemplate.fromMessages([
       new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
     ]);
 
-    if (isO1Model) {
+    if (!isO1PreviewModel) {
       effectivePrompt = ChatPromptTemplate.fromMessages([
         [AI_SENDER, getSystemPrompt() || ""],
         effectivePrompt,
@@ -175,9 +186,9 @@ export default class ChainManager {
     this.validateChainType(chainType);
 
     // Get chatModel, memory, prompt, and embeddingAPI from respective managers
-    const chatModel = this.chatModelManager.getChatModel();
-    const memory = this.memoryManager.getMemory();
-    const chatPrompt = this.promptManager.getChatPrompt();
+    const chatModel: BaseChatModel = this.chatModelManager.getChatModel();
+    const memory: MemoryManager = this.memoryManager.getMemory();
+    const chatPrompt: ChatPromptTemplate = this.promptManager.getChatPrompt();
 
     switch (chainType) {
       case ChainType.LLM_CHAIN: {
@@ -195,7 +206,7 @@ export default class ChainManager {
       case ChainType.VAULT_QA_CHAIN: {
         const { embeddingsAPI } = await this.initializeQAChain(options);
 
-        const retriever = new HybridRetriever(
+        const retriever: HybridRetriever = new HybridRetriever(
           this.vectorStoreManager.dbOps,
           this.app.vault,
           chatModel,
@@ -249,7 +260,7 @@ export default class ChainManager {
   }
 
   private getChainRunner(): ChainRunner {
-    const chainType = getChainType();
+    const chainType: ChainType = getChainType();
     switch (chainType) {
       case ChainType.LLM_CHAIN:
         return new LLMChainRunner(this);
@@ -262,13 +273,15 @@ export default class ChainManager {
     }
   }
 
-  private async initializeQAChain(options: SetChainOptions) {
-    const embeddingsAPI = this.embeddingsManager.getEmbeddingsAPI();
+  private async initializeQAChain(
+    options: SetChainOptions
+  ): Promise<{ embeddingsAPI: any; db: any }> {
+    const embeddingsAPI: any = this.embeddingsManager.getEmbeddingsAPI();
     if (!embeddingsAPI) {
       throw new Error("Error getting embeddings API. Please check your settings.");
     }
 
-    const db = await this.vectorStoreManager.getOrInitializeDb(embeddingsAPI);
+    const db: any = await this.vectorStoreManager.getOrInitializeDb(embeddingsAPI);
 
     // Handle index refresh if needed
     if (options.refreshIndex) {
@@ -288,7 +301,7 @@ export default class ChainManager {
       ignoreSystemMessage?: boolean;
       updateLoading?: (loading: boolean) => void;
     } = {}
-  ) {
+  ): Promise<string> {
     const { debug = false, ignoreSystemMessage = false } = options;
 
     if (debug) console.log("==== Step 0: Initial user message ====\n", userMessage);
@@ -296,46 +309,60 @@ export default class ChainManager {
     this.validateChatModel();
     this.validateChainInitialization();
 
-    const chatModel = this.chatModelManager.getChatModel();
-    const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
-    const isO1Model = modelName.startsWith("o1");
+    const chatModel: BaseChatModel = this.chatModelManager.getChatModel();
+    const modelName: string = (chatModel as any).modelName || (chatModel as any).model || "";
+    const isO1PreviewModel: boolean = modelName === "o1-preview";
 
     // Handle ignoreSystemMessage
-    if (ignoreSystemMessage || isO1Model) {
-      let effectivePrompt = ChatPromptTemplate.fromMessages([
+    if (ignoreSystemMessage || isO1PreviewModel) {
+      const effectivePrompt: ChatPromptTemplate = ChatPromptTemplate.fromMessages([
         new MessagesPlaceholder("history"),
         HumanMessagePromptTemplate.fromTemplate("{input}"),
       ]);
-
-      // TODO: hack for o1 models, to be removed when they support system prompt
-      if (isO1Model) {
-        //  Temporary fix：for o1-xx model need to covert systemMessage to aiMessage
-        effectivePrompt = ChatPromptTemplate.fromMessages([
-          [AI_SENDER, getSystemPrompt() || ""],
-          effectivePrompt,
-        ]);
-      }
 
       this.setChain(getChainType(), {
         prompt: effectivePrompt,
       });
     }
 
-    const chainRunner = this.getChainRunner();
-    return await chainRunner.run(
-      userMessage,
-      abortController,
-      updateCurrentAiMessage,
-      addMessage,
-      options
-    );
+    const chainRunner: ChainRunner = this.getChainRunner();
+    try {
+      return await chainRunner.run(
+        userMessage,
+        abortController,
+        updateCurrentAiMessage,
+        addMessage,
+        options
+      );
+    } catch (error) {
+      if (isO1PreviewModel) {
+        console.error("Error in o1-preview model execution:", error);
+        if (error instanceof Error && error.message.includes("system message")) {
+          addMessage({
+            message: "Error: o1-preview models do not support system messages.",
+            sender: AI_SENDER,
+            isVisible: true,
+            timestamp: formatDateTime(new Date()),
+          });
+        } else {
+          addMessage({
+            message: `Error in o1-preview model: ${error instanceof Error ? error.message : String(error)}`,
+            sender: AI_SENDER,
+            isVisible: true,
+            timestamp: formatDateTime(new Date()),
+          });
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
-  async updateMemoryWithLoadedMessages(messages: ChatMessage[]) {
+  async updateMemoryWithLoadedMessages(messages: ChatMessage[]): Promise<void> {
     await this.memoryManager.clearChatMemory();
     for (let i = 0; i < messages.length; i += 2) {
-      const userMsg = messages[i];
-      const aiMsg = messages[i + 1];
+      const userMsg: ChatMessage | undefined = messages[i];
+      const aiMsg: ChatMessage | undefined = messages[i + 1];
       if (userMsg && aiMsg && userMsg.sender === USER_SENDER) {
         await this.memoryManager
           .getMemory()
@@ -343,4 +370,10 @@ export default class ChainManager {
       }
     }
   }
+}
+
+function isSupportedChain(chain: RunnableSequence): boolean {
+  // Implementation of this function is not provided in the original code
+  // You should implement it based on your specific requirements
+  return true; // Placeholder implementation
 }

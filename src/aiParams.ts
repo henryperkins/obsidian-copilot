@@ -1,9 +1,10 @@
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "./chainFactory";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { CopilotSettings } from "./settings/model";
 
 import { atom, useAtom } from "jotai";
-import { getSettings, settingsAtom, settingsStore, updateSetting } from "@/settings/model";
+import { getSettings, settingsAtom, settingsStore, updateSetting } from "./settings/model";
 
 const userModelKeyAtom = atom<string | null>(null);
 const modelKeyAtom = atom(
@@ -12,7 +13,7 @@ const modelKeyAtom = atom(
     if (userValue !== null) {
       return userValue;
     }
-    return get(settingsAtom).defaultModelKey;
+    return (get(settingsAtom) as CopilotSettings).defaultModelKey;
   },
   (get, set, newValue) => {
     set(userModelKeyAtom, newValue);
@@ -26,7 +27,7 @@ const chainTypeAtom = atom(
     if (userValue !== null) {
       return userValue;
     }
-    return get(settingsAtom).defaultChainType;
+    return (get(settingsAtom) as CopilotSettings).defaultChainType;
   },
   (get, set, newValue) => {
     set(userChainTypeAtom, newValue);
@@ -39,22 +40,18 @@ export interface ModelConfig {
   streaming: boolean;
   maxRetries: number;
   maxConcurrency: number;
-  maxTokens?: number;
-  openAIApiKey?: string;
-  openAIOrgId?: string;
-  anthropicApiKey?: string;
-  cohereApiKey?: string;
+  maxCompletionTokens?: number;
+  reasoningEffort?: "low" | "medium" | "high";
+  enableCors?: boolean;
   azureOpenAIApiKey?: string;
   azureOpenAIApiInstanceName?: string;
   azureOpenAIApiDeploymentName?: string;
   azureOpenAIApiVersion?: string;
-  // Google and TogetherAI API key share this property
-  apiKey?: string;
-  openAIProxyBaseUrl?: string;
-  groqApiKey?: string;
-  enableCors?: boolean;
-  maxCompletionTokens?: number;
-  reasoningEffort?: number;
+  // Added optional properties for flexibility
+  presencePenalty?: number;
+  frequencyPenalty?: number;
+  logitBias?: Record<string, number>;
+  user?: string;
 }
 
 export interface SetChainOptions {
@@ -80,7 +77,7 @@ export interface CustomModel {
   azureOpenAIApiVersion?: string;
 }
 
-export function setModelKey(modelKey: string) {
+export function setModelKey(modelKey: string): void {
   settingsStore.set(modelKeyAtom, modelKey);
 }
 
@@ -92,7 +89,7 @@ export function subscribeToModelKeyChange(callback: () => void): () => void {
   return settingsStore.sub(modelKeyAtom, callback);
 }
 
-export function useModelKey() {
+export function useModelKey(): [string | null, (newValue: string) => void] {
   return useAtom(modelKeyAtom, {
     store: settingsStore,
   });
@@ -102,7 +99,7 @@ export function getChainType(): ChainType {
   return settingsStore.get(chainTypeAtom);
 }
 
-export function setChainType(chainType: ChainType) {
+export function setChainType(chainType: ChainType): void {
   settingsStore.set(chainTypeAtom, chainType);
 }
 
@@ -110,13 +107,13 @@ export function subscribeToChainTypeChange(callback: () => void): () => void {
   return settingsStore.sub(chainTypeAtom, callback);
 }
 
-export function useChainType() {
+export function useChainType(): [ChainType | null, (newValue: ChainType) => void] {
   return useAtom(chainTypeAtom, {
     store: settingsStore,
   });
 }
 
-export function updateModelConfig(modelKey: string, config: Partial<ModelConfig>) {
+export function updateModelConfig(modelKey: string, config: Partial<ModelConfig>): void {
   const settings = getSettings();
   const updatedModelConfigs = {
     ...settings.modelConfigs,
@@ -126,4 +123,8 @@ export function updateModelConfig(modelKey: string, config: Partial<ModelConfig>
     },
   };
   updateSetting("modelConfigs", updatedModelConfigs);
+}
+
+export function findCustomModel(modelKey: string, models: CustomModel[]): CustomModel | undefined {
+  return models.find((model: CustomModel) => `${model.name}|${model.provider}` === modelKey);
 }

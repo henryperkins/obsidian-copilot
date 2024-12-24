@@ -1,5 +1,6 @@
-import { CustomModel } from "@/aiParams";
-import { type CopilotSettings } from "@/settings/model";
+// In constants.ts
+import { CustomModel } from "./aiParams";
+import { type CopilotSettings } from "./settings/model";
 import { ChainType } from "./chainFactory";
 
 export const BREVILABS_API_BASE_URL = "https://api.brevilabs.com/v1";
@@ -232,9 +233,8 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   modelConfigs: {},
   azureOpenAIApiKey: "",
   azureOpenAIApiInstanceName: "",
-  azureOpenAIApiDeploymentName: "",
-  azureOpenAIApiVersion: "",
   azureOpenAIApiEmbeddingDeploymentName: "",
+  azureOpenAIApiVersion: "",
   googleApiKey: "",
   openRouterAiApiKey: "",
   defaultChainType: ChainType.LLM_CHAIN,
@@ -331,7 +331,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
     },
   },
   promptUsageTimestamps: {},
-  azureOpenAIApiDeployments: [], // Added to support multiple Azure OpenAI deployments
+  azureOpenAIApiDeployments: [],
 };
 
 export const EVENT_NAMES = {
