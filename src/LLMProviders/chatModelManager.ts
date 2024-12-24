@@ -10,6 +10,13 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { Notice } from "obsidian";
 import { safeFetch } from "../utils";
+
+// Polyfill for formData in node-fetch Response
+if (!Response.prototype.formData) {
+  Response.prototype.formData = async function () {
+    throw new Error("formData is not implemented in node-fetch");
+  };
+}
 import { CustomFetch } from "../types";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { getDecryptedKey } from "../encryptionService";
@@ -156,7 +163,7 @@ export default class ChatModelManager {
         ...this.handleAzureOpenAIExtraArgs(isO1PreviewModel, maxTokens, temperature),
         configuration: {
           baseURL: customModel.baseUrl,
-          fetch: customModel.enableCors ? (asFetch(safeFetch) as typeof fetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as unknown as typeof fetch) : undefined,
         },
         // Validate parameters for o1-preview
         ...(isO1PreviewModel && {
