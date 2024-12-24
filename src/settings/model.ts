@@ -1,3 +1,4 @@
+// src/settings/model.ts
 import { CustomModel, ModelConfig } from "../aiParams";
 import { ChainType } from "../chainFactory";
 import {
@@ -13,7 +14,8 @@ import { useAtomValue } from "jotai";
 
 export interface AzureDeployment {
   modelKey: string;
-  deploymentName: string;
+  modelFamily: string; // Add this line
+  deploymentName: string; // This is the deployment name used for chatting (and embeddings if not overridden)
   instanceName: string;
   apiVersion: string;
   apiKey: string;
@@ -131,6 +133,7 @@ function isAzureDeployment(value: any): value is AzureDeployment {
   return (
     typeof value === "object" &&
     typeof value.modelKey === "string" &&
+    typeof value.modelFamily === "string" && // Add this check
     typeof value.deploymentName === "string" &&
     typeof value.instanceName === "string" &&
     typeof value.apiVersion === "string" &&

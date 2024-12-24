@@ -55,6 +55,7 @@
     "lint-staged": "^15.2.9",
     "obsidian": "^1.2.5",
     "prettier": "^3.3.3",
+    "shadcn-ui": "^0.9.4",
     "ts-jest": "^29.1.0",
     "tslib": "2.4.0",
     "typescript": "4.7.4",
@@ -76,6 +77,8 @@
     "@tabler/icons-react": "^2.14.0",
     "axios": "^1.3.4",
     "chrono-node": "^2.7.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cohere-ai": "^7.13.0",
     "crypto-js": "^4.1.1",
     "esbuild-plugin-svg": "^0.1.0",
@@ -92,7 +95,9 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
     "react-syntax-highlighter": "^15.5.0",
-    "sse": "github:mpetazzoni/sse.js"
+    "sse": "github:mpetazzoni/sse.js",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "directories": {
     "test": "tests"

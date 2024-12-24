@@ -1,448 +1,435 @@
-import { getModelKey, updateModelConfig, setModelKey } from "@/aiParams";
-import { updateSetting, useSettingsValue } from "@/settings/model";
-import { AzureDeployment } from "@/settings/model";
 import React, { useState, useEffect } from "react";
-import ApiSetting from "./ApiSetting";
-import Collapsible from "./Collapsible";
-import { Notice } from "obsidian";
-import { getSettings } from "../model";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
+import { updateSetting, useSettingsValue, type AzureDeployment } from "../../settings/model";
+import { ChatModels } from "../../constants";
+
+// 1. Ensure that the keys in `modelKeyMap` match the values from `ChatModels`
+const modelKeyMap = {
+  [ChatModels.GPT_4o]: "gpt-4o",
+  [ChatModels.GPT_4o_mini]: "gpt-4o-mini",
+  [ChatModels.GPT_4_TURBO]: "gpt-4-turbo", // Added this to match ChatModels
+  [ChatModels.GEMINI_PRO]: "gemini-pro",
+  [ChatModels.GEMINI_FLASH]: "gemini-flash",
+  [ChatModels.AZURE_OPENAI]: "azure-openai",
+  [ChatModels.CLAUDE_3_5_SONNET]: "claude-3-5-sonnet",
+  [ChatModels.CLAUDE_3_5_HAIKU]: "claude-3-5-haiku",
+  [ChatModels.COMMAND_R]: "command-r",
+  [ChatModels.COMMAND_R_PLUS]: "command-r-plus",
+};
 
 const ApiSettings: React.FC = () => {
   const settings = useSettingsValue();
-  const currentModelKey = getModelKey();
-  const currentModelConfig = settings.modelConfigs[currentModelKey] || {};
-  const isO1Model = currentModelKey.startsWith("o1");
 
-  const handleMaxCompletionTokensChange = (value: string) => {
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue) && numValue > 0) {
-      updateModelConfig(currentModelKey, { maxCompletionTokens: numValue });
-    } else {
-      console.error("Invalid maxCompletionTokens value:", value);
-    }
-  };
-
-  const handleReasoningEffortChange = (value: string) => {
-    if (value === "low" || value === "medium" || value === "high") {
-      updateModelConfig(currentModelKey, { reasoningEffort: value });
-    }
-  };
-
-  const [azureDeployments, setAzureDeployments] = useState<AzureDeployment[]>([]);
+  const [deploymentOverrides, setDeploymentOverrides] = useState<Record<number, boolean>>({});
+  const [showGlobalAzureSettings, setShowGlobalAzureSettings] = useState(true);
+  const [azureDeployments, setAzureDeployments] = useState<AzureDeployment[]>(
+    settings.azureOpenAIApiDeployments || []
+  );
 
   useEffect(() => {
-    const deployments: AzureDeployment[] = getSettings().azureOpenAIApiDeployments || [];
-    setAzureDeployments(deployments);
-  }, [getSettings().azureOpenAIApiDeployments]);
+    setShowGlobalAzureSettings(azureDeployments.length === 0);
+  }, [azureDeployments]);
+
+  const handleOverrideToggle = (index: number) => {
+    setDeploymentOverrides((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  const ApiKeyInput = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+    type = "text",
+    description,
+    id,
+  }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    type?: "text" | "password";
+    description?: string;
+    id: string;
+  }) => (
+    <div className="mb-4">
+      <Label className="mb-2" htmlFor={id}>
+        {label}
+      </Label>
+      {description && <p className="text-sm text-gray-500 mb-2">{description}</p>}
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full"
+      />
+    </div>
+  );
 
   const handleAddAzureDeployment = () => {
-    const availableModels = Object.keys(getSettings().modelConfigs).filter(
-      (modelKey) => !azureDeployments.some((deployment) => deployment.modelKey === modelKey)
-    );
-    const defaultModelKey = availableModels.length > 0 ? availableModels[0] : "";
-
-    if (
-      azureDeployments.length > 0 &&
-      !azureDeployments[azureDeployments.length - 1].deploymentName
-    ) {
-      new Notice("Please fill in the deployment name for the previous entry first.");
-      return;
-    }
-
-    if (!defaultModelKey) {
-      new Notice("Please add a model first.");
-      return;
-    }
-
-    setAzureDeployments((prev) => [
-      ...prev,
-      {
-        modelKey: defaultModelKey,
-        deploymentName: "",
-        instanceName: "",
-        apiVersion: "",
-        apiKey: getSettings().azureOpenAIApiKey || "",
-        specialSettings: {},
-      },
-    ]);
-  };
-
-  const handleAzureDeploymentChange = (
-    index: number,
-    field: keyof Omit<AzureDeployment, "specialSettings">,
-    value: string
-  ) => {
-    if (field === "deploymentName" || field === "instanceName") {
-      if (!value) {
-        new Notice(`Azure OpenAI ${field} is required.`);
-        return;
-      }
-    }
-
-    setAzureDeployments((prev) =>
-      prev.map((deployment, i) => (i === index ? { ...deployment, [field]: value } : deployment))
-    );
-  };
-
-  const handleAzureDeploymentSpecialSettingsChange = (
-    index: number,
-    field: keyof NonNullable<AzureDeployment["specialSettings"]>,
-    value: string | number
-  ) => {
-    setAzureDeployments((prev) =>
-      prev.map((deployment, i) => {
-        if (i !== index) return deployment;
-        const newSpecialSettings = { ...(deployment.specialSettings || {}) };
-        if (field === "maxCompletionTokens") {
-          newSpecialSettings.maxCompletionTokens = Number(value);
-        } else if (field === "reasoningEffort") {
-          newSpecialSettings.reasoningEffort = value as "low" | "medium" | "high";
-        }
-        return { ...deployment, specialSettings: newSpecialSettings };
-      })
-    );
-  };
-
-  const handleRemoveAzureDeployment = (index: number) => {
-    setAzureDeployments((prev) => prev.filter((_, i) => i !== index));
+    const newDeployment: AzureDeployment = {
+      modelKey: "",
+      deploymentName: "",
+      instanceName: settings.azureOpenAIApiInstanceName || "",
+      apiVersion: settings.azureOpenAIApiVersion || "",
+      apiKey: settings.azureOpenAIApiKey || "",
+      specialSettings: {},
+      modelFamily: "",
+    };
+    setAzureDeployments((prev) => [...prev, newDeployment]);
   };
 
   const handleSaveDeployments = () => {
-    const validDeployments = azureDeployments.filter(
-      (deployment): deployment is AzureDeployment => {
-        if (!deployment.modelKey || !deployment.deploymentName || !deployment.apiKey) {
-          new Notice("Model key, deployment name, and API key are required for all deployments.");
-          return false;
-        }
-        return true;
+    const errors = [];
+    const deploymentNames = new Set();
+
+    for (const deployment of azureDeployments) {
+      if (!deployment.modelKey) {
+        errors.push("Model key is required for all deployments.");
       }
-    );
+      if (!deployment.deploymentName) {
+        errors.push("Deployment name is required for all deployments.");
+      }
+      if (!deployment.apiKey && !deploymentOverrides[azureDeployments.indexOf(deployment)]) {
+        errors.push("API key is required for all deployments.");
+      }
 
-    if (validDeployments.length !== azureDeployments.length) {
-      new Notice("Removed entries with empty model key, deployment name, or API key.");
+      const deploymentNameKey = `${deployment.modelKey}-${deployment.deploymentName}`;
+      if (deploymentNames.has(deploymentNameKey)) {
+        errors.push(
+          `Duplicate deployment name "${deployment.deploymentName}" found for model "${deployment.modelKey}".`
+        );
+      }
+      deploymentNames.add(deploymentNameKey);
     }
 
-    updateSetting("azureOpenAIApiDeployments", validDeployments);
-  };
-
-  const validateAzureFields = (deployment: AzureDeployment): boolean => {
-    if (!deployment.deploymentName || !deployment.instanceName) {
-      new Notice("Azure OpenAI Deployment Name and Instance Name are required.");
-      return false;
+    if (errors.length > 0) {
+      errors.forEach((error) => alert(error));
+      return;
     }
-    return true;
+
+    updateSetting("azureOpenAIApiDeployments", azureDeployments);
   };
 
   return (
-    <div>
-      <h1>API Settings</h1>
-      <p>All your API keys are stored locally.</p>
-      <div className="warning-message">
-        Make sure you have access to the model and the correct API key.
-        <br />
-        If errors occur, please try resetting to default and re-enter the API key.
-      </div>
-      <div>
-        <div>
-          <ApiSetting
-            title="OpenAI API Key"
-            value={settings.openAIApiKey}
-            setValue={(value) => updateSetting("openAIApiKey", value)}
-            placeholder="Enter OpenAI API Key"
-          />
-          <p>
-            You can find your API key at{" "}
-            <a
-              href="https://platform.openai.com/api-keys"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              https://platform.openai.com/api-keys
-            </a>
-          </p>
-          <ApiSetting
-            title="OpenAI Organization ID (optional)"
-            value={settings.openAIOrgId}
-            setValue={(value) => updateSetting("openAIOrgId", value)}
-            placeholder="Enter OpenAI Organization ID if applicable"
-          />
-        </div>
-        <div className="warning-message">
-          <span>If you are a new user, try </span>
-          <a
-            href="https://platform.openai.com/playground?mode=chat"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            OpenAI playground
-          </a>
-          <span> to see if you have correct API access first.</span>
-        </div>
-      </div>
-      <br />
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">API Settings</h1>
 
-      <Collapsible title="Google API Settings">
-        <div>
-          <ApiSetting
-            title="Google API Key"
-            value={settings.googleApiKey}
-            setValue={(value) => updateSetting("googleApiKey", value)}
-            placeholder="Enter Google API Key"
-          />
-          <p>
-            If you have Google Cloud, you can get Gemini API key{" "}
-            <a
-              href="https://makersuite.google.com/app/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              here
-            </a>
-            .
-            <br />
-            Your API key is stored locally and is only used to make requests to Google's services.
-          </p>
-        </div>
+      <Alert className="mb-6">
+        <AlertDescription>
+          All your API keys are stored locally. Make sure you have access to the models and correct
+          API keys.
+        </AlertDescription>
+      </Alert>
+
+      {/* OpenAI Settings */}
+      <Collapsible className="w-full mb-6">
+        <Card>
+          <CardHeader className="cursor-pointer">
+            <CollapsibleTrigger className="w-full text-left">
+              <CardTitle>OpenAI Settings</CardTitle>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <ApiKeyInput
+                label="OpenAI API Key"
+                id="openAIApiKey"
+                value={settings.openAIApiKey}
+                onChange={(value) => updateSetting("openAIApiKey", value)}
+                placeholder="Enter OpenAI API Key"
+                type="password"
+              />
+              <ApiKeyInput
+                label="Organization ID (optional)"
+                id="openAIOrgId"
+                value={settings.openAIOrgId}
+                onChange={(value) => updateSetting("openAIOrgId", value)}
+                placeholder="Enter OpenAI Organization ID"
+              />
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-600"
+              >
+                Get your API key here
+              </a>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
       </Collapsible>
 
-      <Collapsible title="Anthropic API Settings">
-        <div>
-          <ApiSetting
-            title="Anthropic API Key"
-            value={settings.anthropicApiKey}
-            setValue={(value) => updateSetting("anthropicApiKey", value)}
-            placeholder="Enter Anthropic API Key"
-          />
-          <p>
-            If you have Anthropic API access, you can get the API key{" "}
-            <a
-              href="https://console.anthropic.com/settings/keys"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              here
-            </a>
-            .
-            <br />
-            Your API key is stored locally and is only used to make requests to Anthropic's
-            services.
-          </p>
-        </div>
-      </Collapsible>
-
-      <Collapsible title="OpenRouter.ai API Settings">
-        <div>
-          <ApiSetting
-            title="OpenRouter AI API Key"
-            value={settings.openRouterAiApiKey}
-            setValue={(value) => updateSetting("openRouterAiApiKey", value)}
-            placeholder="Enter OpenRouter AI API Key"
-          />
-          <p>
-            You can get your OpenRouterAI key{" "}
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
-              here
-            </a>
-            .
-            <br />
-            Find models{" "}
-            <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">
-              here
-            </a>
-            .
-          </p>
-        </div>
-      </Collapsible>
-
-      <Collapsible title="Azure OpenAI API Settings">
-        <div>
-          <ApiSetting
-            title="Azure OpenAI API Key"
-            value={settings.azureOpenAIApiKey}
-            setValue={(value) => updateSetting("azureOpenAIApiKey", value)}
-            placeholder="Enter Azure OpenAI API Key"
-          />
-          <ApiSetting
-            title="Azure OpenAI API Embedding Deployment Name"
-            description="(Optional) For embedding provider Azure OpenAI"
-            value={settings.azureOpenAIApiEmbeddingDeploymentName}
-            setValue={(value) => updateSetting("azureOpenAIApiEmbeddingDeploymentName", value)}
-            placeholder="Enter Azure OpenAI API Embedding Deployment Name"
-          />
-          <ApiSetting
-            title="Azure OpenAIApi Deployment Name"
-            value={settings.azureOpenAIApiDeploymentName}
-            setValue={(value) => updateSetting("azureOpenAIApiDeploymentName", value)}
-            placeholder="Enter Azure OpenAIApi Deployment Name"
-          />
-          <ApiSetting
-            title="Azure OpenAIApi Instance Name"
-            value={settings.azureOpenAIApiInstanceName}
-            setValue={(value) => updateSetting("azureOpenAIApiInstanceName", value)}
-            placeholder="Enter Azure OpenAIApi Instance Name"
-          />
-          <ApiSetting
-            title="Azure OpenAIApi Version"
-            value={settings.azureOpenAIApiVersion}
-            setValue={(value) => updateSetting("azureOpenAIApiVersion", value)}
-            placeholder="Enter Azure OpenAIApi Version"
-          />
-          <h3>Azure OpenAI Deployments</h3>
-          {Object.keys(getSettings().modelConfigs).length > 0 && (
-            <>
-              {azureDeployments.map((deployment, index) => (
-                <div key={index} className="azure-deployment">
-                  <div className="modelKey">
-                    <label htmlFor={`modelKey-${index}`}>Model Key:</label>
-                    <select
-                      id={`modelKey-${index}`}
-                      value={deployment.modelKey}
-                      onChange={(e) => {
-                        handleAzureDeploymentChange(index, "modelKey", e.target.value);
-                        setModelKey(e.target.value);
-                      }}
-                    >
-                      {Object.keys(getSettings().modelConfigs).map((modelKey) => (
-                        <option key={modelKey} value={modelKey}>
-                          {modelKey}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <ApiSetting
-                    title={`Deployment Name for ${deployment.modelKey}`}
-                    value={deployment.deploymentName}
-                    setValue={(value) =>
-                      handleAzureDeploymentChange(index, "deploymentName", value)
-                    }
-                    placeholder="Enter deployment name"
+      {/* Azure OpenAI Settings */}
+      <Collapsible className="w-full mb-6">
+        <Card>
+          <CardHeader className="cursor-pointer">
+            <CollapsibleTrigger className="w-full text-left">
+              <CardTitle>Azure OpenAI Settings</CardTitle>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {showGlobalAzureSettings && (
+                <>
+                  <ApiKeyInput
+                    label="Azure OpenAI API Key"
+                    id="azureOpenAIApiKey"
+                    value={settings.azureOpenAIApiKey}
+                    onChange={(value) => updateSetting("azureOpenAIApiKey", value)}
+                    placeholder="Enter Azure OpenAI API Key"
+                    type="password"
                   />
-                  <ApiSetting
-                    title="Azure OpenAI API Instance Name"
-                    value={deployment.instanceName}
-                    setValue={(value) => handleAzureDeploymentChange(index, "instanceName", value)}
+                  <ApiKeyInput
+                    label="Azure OpenAI API Instance Name"
+                    id="azureOpenAIApiInstanceName"
+                    value={settings.azureOpenAIApiInstanceName}
+                    onChange={(value) => updateSetting("azureOpenAIApiInstanceName", value)}
                     placeholder="Enter Azure OpenAI API Instance Name"
                   />
-                  <ApiSetting
-                    title="Azure OpenAI API Version"
-                    value={deployment.apiVersion}
-                    setValue={(value) => handleAzureDeploymentChange(index, "apiVersion", value)}
-                    placeholder="Enter Azure OpenAI API Version"
+                  <ApiKeyInput
+                    label="Azure OpenAI API Version"
+                    id="azureOpenAIApiVersion"
+                    value={settings.azureOpenAIApiVersion}
+                    onChange={(value) => updateSetting("azureOpenAIApiVersion", value)}
+                    placeholder="Enter Azure OpenAIApiVersion"
                   />
-                  <ApiSetting
-                    title="Azure OpenAI API Key"
-                    value={deployment.apiKey}
-                    setValue={(value) => handleAzureDeploymentChange(index, "apiKey", value)}
-                    placeholder="Enter Azure OpenAI API Key"
-                  />
-                  {deployment.modelKey === "o1-preview" && (
-                    <>
-                      <ApiSetting
-                        title="Max Completion Tokens (o1-preview)"
-                        value={deployment.specialSettings?.maxCompletionTokens?.toString() || ""}
-                        setValue={(value) =>
-                          handleAzureDeploymentSpecialSettingsChange(
-                            index,
-                            "maxCompletionTokens",
-                            value
-                          )
-                        }
-                        placeholder="Enter max completion tokens"
-                      />
-                      <ApiSetting
-                        title="Reasoning Effort (o1-preview)"
-                        value={deployment.specialSettings?.reasoningEffort || ""}
-                        setValue={(value) =>
-                          handleAzureDeploymentSpecialSettingsChange(
-                            index,
-                            "reasoningEffort",
-                            value
-                          )
-                        }
-                        placeholder="Enter reasoning effort (low, medium, high)"
-                      />
-                      <div className="warning-message">
-                        Note: o1-preview models do not support system messages, max_tokens,
-                        temperature modification, or streaming.
+                </>
+              )}
+
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Azure Deployments</h3>
+                {azureDeployments.map((deployment, index) => (
+                  <Card key={index} className="mb-4 p-4">
+                    <div className="space-y-4">
+                      <div className="grid gap-4">
+                        {/* Model Selection */}
+                        <div className="space-y-2">
+                          <Label htmlFor={`modelKey-${index}`}>Model</Label>
+                          <Select
+                            value={deployment.modelKey}
+                            onValueChange={(value) => {
+                              const newDeployments = [...azureDeployments];
+                              newDeployments[index] = {
+                                ...newDeployments[index],
+                                modelKey: value,
+                              };
+                              setAzureDeployments(newDeployments);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.values(ChatModels).map((model) => (
+                                <SelectItem
+                                  key={model}
+                                  // 2. Use a fallback if this model isn't found in modelKeyMap
+                                  value={modelKeyMap[model] || model}
+                                >
+                                  {model}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Deployment Name */}
+                        <ApiKeyInput
+                          label="Deployment Name"
+                          id={`deploymentName-${index}`}
+                          value={deployment.deploymentName}
+                          onChange={(value) => {
+                            const newDeployments = [...azureDeployments];
+                            newDeployments[index].deploymentName = value;
+                            setAzureDeployments(newDeployments);
+                          }}
+                          placeholder="Enter deployment name"
+                        />
+
+                        {/* Override Global Settings */}
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`override-${index}`}
+                            checked={deploymentOverrides[index] || false}
+                            onChange={() => handleOverrideToggle(index)}
+                            className="rounded"
+                          />
+                          <Label htmlFor={`override-${index}`}>Override Global Settings</Label>
+                        </div>
+
+                        {/* If override is checked, allow custom instance & API key */}
+                        {deploymentOverrides[index] && (
+                          <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                            <ApiKeyInput
+                              label="Instance Name"
+                              id={`instanceName-${index}`}
+                              value={deployment.instanceName}
+                              onChange={(value) => {
+                                const newDeployments = [...azureDeployments];
+                                newDeployments[index].instanceName = value;
+                                setAzureDeployments(newDeployments);
+                              }}
+                              placeholder="Enter instance name"
+                            />
+                            <ApiKeyInput
+                              label="API Key"
+                              id={`apiKey-${index}`}
+                              value={deployment.apiKey}
+                              onChange={(value) => {
+                                const newDeployments = [...azureDeployments];
+                                newDeployments[index].apiKey = value;
+                                setAzureDeployments(newDeployments);
+                              }}
+                              placeholder="Enter API key"
+                              type="password"
+                            />
+                          </div>
+                        )}
+
+                        {/* o1-preview-based special settings */}
+                        {deployment.modelKey && deployment.modelKey.startsWith("o1-preview") && (
+                          <div className="space-y-4">
+                            <ApiKeyInput
+                              label="Max Completion Tokens"
+                              id={`maxCompletionTokens-${index}`}
+                              value={
+                                deployment.specialSettings?.maxCompletionTokens?.toString() || ""
+                              }
+                              onChange={(value) => {
+                                const newDeployments = [...azureDeployments];
+                                newDeployments[index].specialSettings = {
+                                  ...newDeployments[index].specialSettings,
+                                  maxCompletionTokens: parseInt(value, 10),
+                                };
+                                setAzureDeployments(newDeployments);
+                              }}
+                              placeholder="Enter max completion tokens"
+                            />
+                            <div className="space-y-2">
+                              <Label htmlFor={`reasoningEffort-${index}`}>Reasoning Effort</Label>
+                              <Select
+                                value={deployment.specialSettings?.reasoningEffort || ""}
+                                onValueChange={(value) => {
+                                  const newDeployments = [...azureDeployments];
+                                  newDeployments[index].specialSettings = {
+                                    ...newDeployments[index].specialSettings,
+                                    reasoningEffort: value as "low" | "medium" | "high",
+                                  };
+                                  setAzureDeployments(newDeployments);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Reasoning Effort" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low</SelectItem>
+                                  <SelectItem value="medium">Medium</SelectItem>
+                                  <SelectItem value="high">High</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Alert>
+                              <AlertDescription>
+                                Note: o1-preview models do not support system messages, max_tokens,
+                                temperature modification, or streaming.
+                              </AlertDescription>
+                            </Alert>
+                          </div>
+                        )}
+
+                        {/* Remove Deployment Button */}
+                        <Button
+                          onClick={() => {
+                            const newDeployments = azureDeployments.filter((_, i) => i !== index);
+                            setAzureDeployments(newDeployments);
+                            updateSetting("azureOpenAIApiDeployments", newDeployments);
+                          }}
+                          variant="destructive"
+                          className="mt-4"
+                        >
+                          Remove Deployment
+                        </Button>
                       </div>
-                    </>
-                  )}
-                  {!validateAzureFields(deployment) && (
-                    <div className="warning-message">
-                      Warning: Azure OpenAI Deployment Name and Instance Name are required.
                     </div>
-                  )}
-                  <button type="button" onClick={() => handleRemoveAzureDeployment(index)}>
-                    Remove
-                  </button>
+                  </Card>
+                ))}
+                <div className="flex space-x-4">
+                  <Button onClick={handleAddAzureDeployment} className="mt-4">
+                    Add Deployment
+                  </Button>
+                  <Button onClick={handleSaveDeployments} className="mt-4">
+                    Save Deployments
+                  </Button>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={handleAddAzureDeployment}
-                disabled={Object.keys(getSettings().modelConfigs).length === 0}
-              >
-                Add Azure OpenAI Deployment
-              </button>
-              <button type="button" onClick={handleSaveDeployments}>
-                Save Deployments
-              </button>
-            </>
-          )}
-          {isO1Model && (
-            <>
-              <ApiSetting
-                title="Max Completion Tokens (o1 series)"
-                description="Set the max completion tokens for o1 series models."
-                value={currentModelConfig.maxCompletionTokens?.toString() || ""}
-                setValue={handleMaxCompletionTokensChange}
-                placeholder="Enter max completion tokens"
-              />
-              <ApiSetting
-                title="Reasoning Effort (o1)"
-                description="Set the reasoning effort for o1 model (low, medium, high)."
-                value={currentModelConfig.reasoningEffort || ""}
-                setValue={handleReasoningEffortChange}
-                placeholder="Enter reasoning effort (low, medium, high)"
-              />
-            </>
-          )}
-        </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
       </Collapsible>
 
-      <Collapsible title="Groq API Settings">
-        <div>
-          <ApiSetting
-            title="Groq API Key"
-            value={settings.groqApiKey}
-            setValue={(value) => updateSetting("groqApiKey", value)}
-            placeholder="Enter Groq API Key"
-          />
-          <p>
-            If you have Groq API access, you can get the API key{" "}
-            <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">
-              here
-            </a>
-            .
-            <br />
-            Your API key is stored locally and is only used to make requests to Groq's services.
-          </p>
-        </div>
-      </Collapsible>
-
-      <Collapsible title="Cohere API Settings">
-        <ApiSetting
-          title="Cohere API Key"
-          value={settings.cohereApiKey}
-          setValue={(value) => updateSetting("cohereApiKey", value)}
-          placeholder="Enter Cohere API Key"
-        />
-        <p>
-          Get your free Cohere API key{" "}
-          <a href="https://dashboard.cohere.ai/api-keys" target="_blank" rel="noopener noreferrer">
-            here
-          </a>
-        </p>
+      {/* Other API Settings */}
+      <Collapsible className="w-full mb-6">
+        <Card>
+          <CardHeader className="cursor-pointer">
+            <CollapsibleTrigger className="w-full text-left">
+              <CardTitle>Other API Settings</CardTitle>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <ApiKeyInput
+                label="Anthropic API Key"
+                id="anthropicApiKey"
+                value={settings.anthropicApiKey}
+                onChange={(value) => updateSetting("anthropicApiKey", value)}
+                placeholder="Enter Anthropic API Key"
+                type="password"
+              />
+              <ApiKeyInput
+                label="Google API Key"
+                id="googleApiKey"
+                value={settings.googleApiKey}
+                onChange={(value) => updateSetting("googleApiKey", value)}
+                placeholder="Enter Google API Key"
+                type="password"
+              />
+              <ApiKeyInput
+                label="Groq API Key"
+                id="groqApiKey"
+                value={settings.groqApiKey}
+                onChange={(value) => updateSetting("groqApiKey", value)}
+                placeholder="Enter Groq API Key"
+                type="password"
+              />
+              <ApiKeyInput
+                label="Cohere API Key"
+                id="cohereApiKey"
+                value={settings.cohereApiKey}
+                onChange={(value) => updateSetting("cohereApiKey", value)}
+                placeholder="Enter Cohere API Key"
+                type="password"
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
       </Collapsible>
     </div>
   );

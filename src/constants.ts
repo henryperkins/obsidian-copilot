@@ -1,4 +1,4 @@
-// In constants.ts
+// src/constants.ts
 import { CustomModel } from "./aiParams";
 import { type CopilotSettings } from "./settings/model";
 import { ChainType } from "./chainFactory";
@@ -233,7 +233,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   modelConfigs: {},
   azureOpenAIApiKey: "",
   azureOpenAIApiInstanceName: "",
-  azureOpenAIApiEmbeddingDeploymentName: "",
+  azureOpenAIApiEmbeddingDeploymentName: "", // Only needed if you use a separate deployment for embeddings
   azureOpenAIApiVersion: "",
   googleApiKey: "",
   openRouterAiApiKey: "",
