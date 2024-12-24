@@ -5,6 +5,7 @@ import { CopilotSettings } from "./settings/model";
 import { atom, useAtom } from "jotai";
 import { getSettings, settingsAtom, settingsStore, updateSetting } from "./settings/model";
 import { ModelConfig } from "./types";
+export { ModelConfig };
 
 const userModelKeyAtom = atom<string | null>(null);
 const modelKeyAtom = atom(

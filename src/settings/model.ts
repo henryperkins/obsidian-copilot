@@ -1,5 +1,6 @@
 // src/settings/model.ts
 import { CustomModel, ModelConfig } from "../aiParams";
+export { AzureDeployment } from "../types";
 import { ChainType } from "../chainFactory";
 import {
   BUILTIN_CHAT_MODELS,
