@@ -15,7 +15,6 @@ const ApiSetting: React.FC<{
         name={title}
         description={description}
         value={value}
-        // @ts-ignore
         onChange={setValue}
         placeholder={placeholder || ""}
         type={type || "password"}
