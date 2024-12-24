@@ -585,14 +585,14 @@ export const safeFetch: typeof fetch = async (
   }
 
   const response = await requestUrl({
-    url,
+    url: url.toString(),
     method: (init.method as string) || "get",
     headers: init.headers as Record<string, string>,
     body: init.body?.toString(),
   });
 
   // Create proper Response object without url property
-  const nodeFetchResponse = new (Response as unknown as typeof ExtendedResponse)(response.text, {
+  const nodeFetchResponse = new Response(response.text, {
     status: response.status,
     statusText: response.status.toString(),
     headers: new Headers(response.headers),

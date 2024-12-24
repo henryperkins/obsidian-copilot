@@ -1,4 +1,3 @@
-// src/settings/model.ts
 import { CustomModel, ModelConfig } from "../aiParams";
 export type { AzureDeployment } from "../types";
 import { ChainType } from "../chainFactory";
