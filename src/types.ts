@@ -7,7 +7,7 @@ import SharedState from "@/sharedState";
 import fetch from "node-fetch";
 
 // Define fetch type to match OpenAI's requirements
-export type CustomFetch = (url: string, init: RequestInit) => Promise<Response>;
+export type CustomFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface Configuration {
   baseURL?: string;
