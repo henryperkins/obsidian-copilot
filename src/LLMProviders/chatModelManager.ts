@@ -10,6 +10,7 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { Notice } from "obsidian";
 import { safeFetch } from "../utils";
+import { CustomFetch } from "../types";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { getDecryptedKey } from "../encryptionService";
 import { getSettings, subscribeToSettingsChange } from "../settings/model";
@@ -142,7 +143,7 @@ export default class ChatModelManager {
         clientOptions: {
           // Required to bypass CORS restrictions
           defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
-          fetch: customModel.enableCors ? asFetch(safeFetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as CustomFetch) : undefined,
         },
       },
       [ChatModelProviders.AZURE_OPENAI]: {
