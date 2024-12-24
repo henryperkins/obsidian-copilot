@@ -143,7 +143,7 @@ export default class ChatModelManager {
         clientOptions: {
           // Required to bypass CORS restrictions
           defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
-          fetch: customModel.enableCors ? (asFetch(safeFetch) as typeof fetch) : undefined,
+          fetch: customModel.enableCors ? (asFetch(safeFetch) as unknown as typeof fetch) : undefined,
         },
       },
       [ChatModelProviders.AZURE_OPENAI]: {
