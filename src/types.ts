@@ -7,7 +7,9 @@ import SharedState from "@/sharedState";
 import fetch from "node-fetch";
 
 // Define fetch type to match OpenAI's requirements
-export type CustomFetch = (url: string, init?: RequestInit) => Promise<Response>;
+import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
+
+export type CustomFetch = (url: string, init?: NodeFetchRequestInit) => Promise<NodeFetchResponse>;
 
 export interface Configuration {
   baseURL?: string;
@@ -71,4 +73,4 @@ export enum ChatModels {
 }
 
 // Helper function for type assertion
-export const asFetch = (fn: CustomFetch): typeof fetch => fn as unknown as typeof fetch;
+export const asFetch = (fn: CustomFetch): CustomFetch => fn as CustomFetch;
