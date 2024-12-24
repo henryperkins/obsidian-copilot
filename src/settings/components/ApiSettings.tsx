@@ -72,6 +72,13 @@ const ApiSettings: React.FC = () => {
     field: keyof Omit<AzureDeployment, "specialSettings">,
     value: string
   ) => {
+    if (field === "deploymentName" || field === "instanceName") {
+      if (!value) {
+        new Notice(`Azure OpenAI ${field} is required.`);
+        return;
+      }
+    }
+
     setAzureDeployments((prev) =>
       prev.map((deployment, i) => (i === index ? { ...deployment, [field]: value } : deployment))
     );
@@ -103,7 +110,11 @@ const ApiSettings: React.FC = () => {
   const handleSaveDeployments = () => {
     const validDeployments = azureDeployments.filter(
       (deployment): deployment is AzureDeployment => {
-        return Boolean(deployment.modelKey && deployment.deploymentName && deployment.apiKey);
+        if (!deployment.modelKey || !deployment.deploymentName || !deployment.apiKey) {
+          new Notice("Model key, deployment name, and API key are required for all deployments.");
+          return false;
+        }
+        return true;
       }
     );
 

@@ -431,6 +431,23 @@ export default class ChatModelManager {
         ? this.getAzureModelConfig(model)
         : this.getModelConfig(model);
 
+    // Add validation for required Azure OpenAI fields
+    if (model.provider === ChatModelProviders.AZURE_OPENAI) {
+      const requiredFields = [
+        "azureOpenAIApiKey",
+        "azureOpenAIApiInstanceName",
+        "azureOpenAIApiDeploymentName",
+        "azureOpenAIApiVersion",
+      ];
+      for (const field of requiredFields) {
+        if (!modelConfig[field as keyof ModelConfig]) {
+          const errorMessage = `Missing required field: ${field} for Azure OpenAI model: ${modelKey}`;
+          new Notice(errorMessage);
+          throw new Error(errorMessage);
+        }
+      }
+    }
+
     setModelKey(`${model.name}|${model.provider}`);
     try {
       const newModelInstance: BaseChatModel = new selectedModel.AIConstructor({
