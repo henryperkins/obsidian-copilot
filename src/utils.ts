@@ -537,10 +537,14 @@ export function extractYoutubeUrl(text: string): string | null {
  * It currently doesn't support streaming until this is implemented
  * https://forum.obsidian.md/t/support-streaming-the-request-and-requesturl-response-body/87381 */
 
+export interface ExtendedResponse extends Response {
+  buffer(): Promise<Buffer>;
+  size: number;
+  textConverted(): Promise<string>;
+  timeout: number;
+}
+
 // Polyfill for missing Response properties
-
-import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
-
 if (!Response.prototype.buffer) {
   Object.defineProperty(Response.prototype, "buffer", {
     value: async function () {
@@ -572,10 +576,10 @@ if (!Response.prototype.timeout) {
   });
 }
 
-export const safeFetch: CustomFetch = async (
-  url: string,
-  init: NodeFetchRequestInit = {}
-): Promise<NodeFetchResponse> => {
+export const safeFetch: typeof fetch = async (
+  url: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> => {
   if (init.headers) {
     delete (init.headers as Record<string, string>)["content-length"];
   }
@@ -588,7 +592,7 @@ export const safeFetch: CustomFetch = async (
   });
 
   // Create proper Response object without url property
-  const nodeFetchResponse = new Response(response.text, {
+  const nodeFetchResponse = new (Response as unknown as typeof ExtendedResponse)(response.text, {
     status: response.status,
     statusText: response.status.toString(),
     headers: new Headers(response.headers),
