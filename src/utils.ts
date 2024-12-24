@@ -7,7 +7,6 @@ import { BaseChain, RetrievalQAChain } from "langchain/chains";
 import moment from "moment";
 import { TFile, Vault, parseYaml, requestUrl } from "obsidian";
 import { CustomModel } from "./aiParams";
-import { CustomFetch } from "./types";
 
 export const getModelNameFromKey = (modelKey: string): string => {
   return modelKey.split("|")[0];
@@ -557,7 +556,8 @@ if (!Response.prototype.buffer) {
 if (!Response.prototype.size) {
   Object.defineProperty(Response.prototype, "size", {
     get() {
-      return this.headers.get("content-length") ? parseInt(this.headers.get("content-length")!) : 0;
+      const contentLength = this.headers.get("content-length");
+      return contentLength ? parseInt(contentLength) : 0;
     },
   });
 }
@@ -608,7 +608,8 @@ export const safeFetch: typeof fetch = async (
     },
     size: {
       get() {
-        return this.headers.get("content-length") ? parseInt(this.headers.get("content-length")!) : 0;
+        const contentLength = this.headers.get("content-length");
+        return contentLength ? parseInt(contentLength) : 0;
       },
     },
     textConverted: {
