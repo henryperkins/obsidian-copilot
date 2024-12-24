@@ -539,10 +539,35 @@ export function extractYoutubeUrl(text: string): string | null {
 
 import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
 
-if (!Response.prototype.formData) {
-  Response.prototype.formData = async function () {
-    throw new Error("formData is not implemented in node-fetch");
-  };
+if (!Response.prototype.buffer) {
+  Object.defineProperty(Response.prototype, "buffer", {
+    value: async function () {
+      const text = await this.text();
+      return Buffer.from(text);
+    },
+  });
+}
+
+if (!Response.prototype.size) {
+  Object.defineProperty(Response.prototype, "size", {
+    get() {
+      return this.headers.get("content-length") ? parseInt(this.headers.get("content-length")!) : 0;
+    },
+  });
+}
+
+if (!Response.prototype.textConverted) {
+  Object.defineProperty(Response.prototype, "textConverted", {
+    value: async function () {
+      return this.text();
+    },
+  });
+}
+
+if (!Response.prototype.timeout) {
+  Object.defineProperty(Response.prototype, "timeout", {
+    value: 0, // Default timeout value
+  });
 }
 
 export const safeFetch: CustomFetch = async (
