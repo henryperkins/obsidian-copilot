@@ -17,7 +17,6 @@ if (!Response.prototype.formData) {
     throw new Error("formData is not implemented in node-fetch");
   };
 }
-import { CustomFetch } from "../types";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { getDecryptedKey } from "../encryptionService";
 import { getSettings, subscribeToSettingsChange } from "../settings/model";

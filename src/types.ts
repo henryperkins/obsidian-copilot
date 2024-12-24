@@ -4,7 +4,6 @@ import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import VectorStoreManager from "@/search/vectorStoreManager";
 import { FileParserManager } from "@/tools/FileParserManager";
 import SharedState from "@/sharedState";
-import fetch from "node-fetch";
 
 // Define fetch type to match OpenAI's requirements
 import { RequestInit as NodeFetchRequestInit, Response as NodeFetchResponse } from "node-fetch";
