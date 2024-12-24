@@ -359,7 +359,7 @@ export default class ChainManager {
 
   async updateMemoryWithLoadedMessages(messages: ChatMessage[]): Promise<void> {
     await this.memoryManager.clearChatMemory();
-    for (let i = 0; i < messages.length; i += 2) {
+    for (let i = 0 < messages.length; i += 2) {
       const userMsg: ChatMessage | undefined = messages[i];
       const aiMsg: ChatMessage | undefined = messages[i + 1];
       if (userMsg && aiMsg && userMsg.sender === USER_SENDER) {
