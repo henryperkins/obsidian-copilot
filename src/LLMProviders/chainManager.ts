@@ -269,10 +269,10 @@ export default class ChainManager {
 
     const chatModel = this.chatModelManager.getChatModel();
     const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
-    const isO1Model = modelName.startsWith("o1");
+    const isO1Preview = isO1PreviewModel(modelName);
 
     // Handle system messages for O1 preview models
-    if (ignoreSystemMessage || isO1Model) {
+    if (ignoreSystemMessage || isO1Preview) {
       const systemPrompt = getSystemPrompt() || "";
       const effectivePrompt = ChatPromptTemplate.fromMessages([
         // For O1 models, convert system message to AI message
