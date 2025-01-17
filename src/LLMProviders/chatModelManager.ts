@@ -70,22 +70,22 @@ export default class ChatModelManager {
 
   private async getModelConfig(customModel: CustomModel): Promise<ModelConfig> {
     const settings = getSettings();
-    const isO1Model = isO1PreviewModel(customModel.modelName);
+    const isO1Preview = isO1PreviewModel(customModel.modelName);
 
-    if (isO1Model) {
+    if (isO1Preview) {
       await this.validateO1PreviewModel(customModel);
     }
 
     const baseConfig: ModelConfig = {
       modelName: customModel.modelName,
-      temperature: isO1Model
+      temperature: isO1Preview
         ? settings.temperature // Use settings.temperature for o1-preview models
         : (customModel.temperature ?? settings.temperature),
-      streaming: isO1Model ? false : (customModel.stream ?? true),
+      streaming: isO1Preview ? false : (customModel.stream ?? true),
       maxRetries: 3,
       maxConcurrency: 3,
-      isO1Preview: isO1Model,
-      ...(isO1Model
+      isO1Preview: isO1Preview,
+      ...(isO1Preview
         ? {
             maxCompletionTokens: settings.maxTokens,
             azureOpenAIApiVersion:
@@ -120,7 +120,7 @@ export default class ChatModelManager {
           baseURL: customModel.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
-        streaming: isO1Model ? false : (customModel.stream ?? true),
+        streaming: isO1Preview ? false : (customModel.stream ?? true),
       },
       [ChatModelProviders.ANTHROPIC]: {
         anthropicApiKey: await getDecryptedKey(customModel.apiKey || settings.anthropicApiKey),
