@@ -42,6 +42,7 @@ interface ChatInputProps {
   onAddImage: (files: File[]) => void;
   setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
   chatHistory: ChatMessage[];
+  isO1Preview: boolean; // Added this line
 }
 
 const ChatInput = forwardRef<{ focus: () => void }, ChatInputProps>(
@@ -66,6 +67,7 @@ const ChatInput = forwardRef<{ focus: () => void }, ChatInputProps>(
       onAddImage,
       setSelectedImages,
       chatHistory,
+      isO1Preview, // Added this line
     },
     ref
   ) => {
@@ -445,7 +447,7 @@ const ChatInput = forwardRef<{ focus: () => void }, ChatInputProps>(
           </div>
 
           <div className="chat-input-buttons">
-            {isGenerating && (
+            {!isO1Preview && isGenerating && (
               <button onClick={() => onStopGenerating()} className="submit-button cancel">
                 <StopCircle />
               </button>
@@ -455,7 +457,7 @@ const ChatInput = forwardRef<{ focus: () => void }, ChatInputProps>(
               <span>chat</span>
             </button>
 
-            {currentChain === "copilot_plus" && (
+            {!isO1Preview && currentChain === "copilot_plus" && (
               <button onClick={() => onSendMessage(true)} className="submit-button vault">
                 <div className="button-content">
                   {Platform.isMacOS ? (

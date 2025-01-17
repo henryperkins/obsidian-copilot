@@ -32,6 +32,7 @@ type TextAreaComponentProps = {
 };
 
 type SliderComponentProps = {
+  disabled?: boolean;
   name: string;
   description?: React.ReactNode; // This allows for JSX elements, strings, etc.
   min: number;
@@ -129,6 +130,7 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
   step,
   value,
   onChange,
+  disabled,
 }) => {
   return (
     <div className="copilot-setting-item">
@@ -143,6 +145,7 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
+          disabled={disabled}
         />
         <span
           style={{ marginLeft: "20px", fontWeight: "bold", color: "var(--inline-title-color)" }}

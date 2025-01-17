@@ -1,5 +1,6 @@
 import { CustomModel } from "@/aiParams";
 import { atom, createStore, useAtomValue } from "jotai";
+import { isO1PreviewModel } from "@/aiParams";
 
 import { type ChainType } from "@/chainFactory";
 import {
@@ -29,8 +30,9 @@ export interface CopilotSettings {
   defaultModelKey: string;
   embeddingModelKey: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number; // Made optional for delete operator compatibility
   contextTurns: number;
+  maxCompletionTokens?: number; // Added for o1-preview models
   // Do not use this directly, use getSystemPrompt() instead
   userSystemPrompt: string;
   openAIProxyBaseUrl: string;
@@ -137,11 +139,17 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
 
   // Stuff in settings are string even when the interface has number type!
-  const temperature = Number(settingsToSanitize.temperature);
+  const isO1Preview = isO1PreviewModel(settingsToSanitize.defaultModelKey);
+  const temperature = isO1Preview ? 1 : Number(settingsToSanitize.temperature);
   sanitizedSettings.temperature = isNaN(temperature) ? DEFAULT_SETTINGS.temperature : temperature;
 
   const maxTokens = Number(settingsToSanitize.maxTokens);
   sanitizedSettings.maxTokens = isNaN(maxTokens) ? DEFAULT_SETTINGS.maxTokens : maxTokens;
+
+  if (isO1Preview) {
+    sanitizedSettings.maxCompletionTokens = sanitizedSettings.maxTokens;
+    delete sanitizedSettings.maxTokens;
+  }
 
   const contextTurns = Number(settingsToSanitize.contextTurns);
   sanitizedSettings.contextTurns = isNaN(contextTurns)

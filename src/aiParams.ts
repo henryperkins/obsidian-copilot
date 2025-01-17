@@ -37,7 +37,7 @@ const chainTypeAtom = atom(
 export interface ModelConfig {
   modelName: string;
   temperature: number;
-  streaming: boolean;
+  stream: boolean;
   maxRetries: number;
   maxConcurrency: number;
   maxTokens?: number;
@@ -130,7 +130,7 @@ export function useChainType() {
 
 // Export utility functions
 export function isO1PreviewModel(modelName: string): boolean {
-  return modelName === "azureml://registries/azure-openai/models/o1-preview/versions/1";
+  return modelName.includes("azure-openai/models/o1-preview");
 }
 
 export function validateO1PreviewModel(model: CustomModel): void {
@@ -147,7 +147,6 @@ export function validateO1PreviewModel(model: CustomModel): void {
   }
 
   // Force O1-preview settings
-  model.temperature = O1_PREVIEW.TEMPERATURE;
   model.stream = false; // Streaming must be disabled for o1-preview
   model.isO1Preview = true;
 }

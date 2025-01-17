@@ -72,42 +72,33 @@ export default class ChatModelManager {
     const settings = getSettings();
     const isO1Preview = isO1PreviewModel(customModel.modelName);
 
-    if (isO1Preview) {
+    if (isO1Preview && customModel.provider === ChatModelProviders.AZURE_OPENAI) {
       await this.validateO1PreviewModel(customModel);
     }
 
     const baseConfig: ModelConfig = {
       modelName: customModel.modelName,
-      temperature: isO1Preview
-        ? settings.temperature // Use settings.temperature for o1-preview models
-        : (customModel.temperature ?? settings.temperature),
-      streaming: isO1Preview ? false : (customModel.stream ?? true),
+      temperature: isO1Preview ? 1 : (customModel.temperature ?? settings.temperature),
+      stream: isO1Preview ? false : (customModel.stream ?? settings.stream ?? true),
       maxRetries: 3,
       maxConcurrency: 3,
-      isO1Preview: isO1Preview,
       ...(isO1Preview
         ? {
             maxCompletionTokens: settings.maxTokens,
-            azureOpenAIApiVersion:
-              customModel.azureOpenAIApiVersion || settings.azureOpenAIApiVersion,
           }
-        : {
-            maxTokens: settings.maxTokens,
-          }),
+        : {}),
     };
 
     const providerConfig: {
       [K in ChatModelProviders]?: any;
     } = {
       [ChatModelProviders.OPENAI]: {
-        modelName: customModel.modelName,
         openAIApiKey: await getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
+        openAIOrgId: await getDecryptedKey(customModel.openAIOrgId || settings.openAIOrgId),
         configuration: {
           baseURL: customModel.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
-        openAIOrgId: await getDecryptedKey(customModel.openAIOrgId || settings.openAIOrgId),
-        streaming: customModel.stream ?? true,
       },
       [ChatModelProviders.AZURE_OPENAI]: {
         azureOpenAIApiKey: await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
@@ -120,7 +111,7 @@ export default class ChatModelManager {
           baseURL: customModel.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
-        streaming: isO1Preview ? false : (customModel.stream ?? true),
+        streaming: false, // Force streaming off for Azure OpenAI
       },
       [ChatModelProviders.ANTHROPIC]: {
         anthropicApiKey: await getDecryptedKey(customModel.apiKey || settings.anthropicApiKey),
@@ -162,7 +153,6 @@ export default class ChatModelManager {
         streaming: customModel.stream ?? true,
       },
       [ChatModelProviders.OPENROUTERAI]: {
-        modelName: customModel.modelName,
         openAIApiKey: await getDecryptedKey(customModel.apiKey || settings.openRouterAiApiKey),
         configuration: {
           baseURL: customModel.baseUrl || "https://openrouter.ai/api/v1",
@@ -191,7 +181,6 @@ export default class ChatModelManager {
         streaming: customModel.stream ?? true,
       },
       [ChatModelProviders.OPENAI_FORMAT]: {
-        modelName: customModel.modelName,
         openAIApiKey: await getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
         configuration: {
           baseURL: customModel.baseUrl,
@@ -268,16 +257,38 @@ export default class ChatModelManager {
 
     const modelConfig = await this.getModelConfig(model);
 
+    const isO1Preview = isO1PreviewModel(model.modelName);
+
+    if (!isO1Preview) {
+      // Validate API key and model configuration by pinging the model
+      try {
+        await this.ping(model);
+      } catch (error) {
+        const errorMessage = `Failed to initialize model: ${modelKey}. ${error.message}`;
+        new Notice(errorMessage);
+        // Reset chatModel to null
+        this.chatModel = null;
+        // Stop execution and deliberately fail the model switch
+        throw new Error(errorMessage);
+      }
+    }
+
     setModelKey(modelKey);
     try {
+      const { stream, ...configWithoutStream } = modelConfig;
       const newModelInstance = new selectedModel.AIConstructor({
-        ...modelConfig,
+        ...configWithoutStream,
+        streaming: stream,
       });
       // Set the new model
       this.chatModel = newModelInstance;
     } catch (error) {
       console.error(error);
       new Notice(`Error creating model: ${modelKey}`);
+      // Reset chatModel to null
+      this.chatModel = null;
+      // Rethrow the error to be handled upstream
+      throw error;
     }
   }
 
@@ -310,7 +321,12 @@ export default class ChatModelManager {
   }
 
   async validateO1PreviewModel(customModel: CustomModel): Promise<void> {
-    if (!isO1PreviewModel(customModel.modelName)) return;
+    if (
+      customModel.provider !== ChatModelProviders.AZURE_OPENAI ||
+      !isO1PreviewModel(customModel.modelName)
+    ) {
+      return;
+    }
 
     const settings = getSettings();
     const apiKey = customModel.apiKey || settings.azureOpenAIApiKey;
@@ -318,19 +334,16 @@ export default class ChatModelManager {
       customModel.azureOpenAIApiInstanceName || settings.azureOpenAIApiInstanceName;
     const deploymentName =
       customModel.azureOpenAIApiDeploymentName || settings.azureOpenAIApiDeploymentName;
+    const apiVersion = customModel.azureOpenAIApiVersion || settings.azureOpenAIApiVersion;
 
-    if (!apiKey || !instanceName || !deploymentName) {
+    if (!apiKey || !instanceName || !deploymentName || !apiVersion) {
       throw new Error(
-        "O1 preview model requires Azure OpenAI API key, instance name, and deployment name. Please check your settings."
+        "Azure OpenAI API key, instance name, deployment name, and API version are required. Please check your settings."
       );
     }
 
-    // Validate model ID format
-    if (
-      customModel.modelName !== "azureml://registries/azure-openai/models/o1-preview/versions/1"
-    ) {
-      throw new Error("Invalid O1 Preview model ID format");
-    }
+    // Ensure the API version is properly set
+    customModel.azureOpenAIApiVersion = apiVersion;
   }
 
   async ping(model: CustomModel): Promise<boolean> {
@@ -338,12 +351,9 @@ export default class ChatModelManager {
       const modelToTest = { ...model, enableCors };
       const isO1Preview = isO1PreviewModel(modelToTest.modelName);
 
-      // Force O1 preview settings if needed
-      if (isO1Preview) {
-        await this.validateO1PreviewModel(modelToTest);
-        modelToTest.temperature = getSettings().temperature;
-        modelToTest.stream = false;
-        modelToTest.azureOpenAIApiVersion = getSettings().azureOpenAIApiVersion;
+      // Skip ping for o1-preview models
+      if (modelToTest.provider === ChatModelProviders.AZURE_OPENAI && isO1Preview) {
+        return;
       }
 
       const modelConfig = await this.getModelConfig(modelToTest);

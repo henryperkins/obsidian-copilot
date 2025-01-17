@@ -133,6 +133,8 @@ export default class ChainManager {
     } catch (error) {
       console.error("createChainWithNewModel failed: ", error);
       console.log("modelKey:", newModelKey);
+      // Rethrow the error to allow upstream handling
+      throw error;
     }
   }
 
@@ -166,7 +168,7 @@ export default class ChainManager {
       memory: memory,
       prompt: ignoreSystemMessage ? prompt : defaultPrompt,
       abortController: options.abortController,
-      streaming: !isO1Preview, // Disable streaming for O1 Preview models
+      streaming: false, // Always disable streaming
       maxTokens: isO1Preview ? undefined : getSettings().maxTokens, // Don't set maxTokens for o1-preview
       maxCompletionTokens: isO1Preview ? getSettings().maxTokens : undefined, // Use maxCompletionTokens instead
     };
@@ -215,7 +217,7 @@ export default class ChainManager {
           memory: memory,
           prompt: options.prompt || chatPrompt,
           abortController: options.abortController,
-          streaming: !isO1Preview, // Disable streaming for o1-preview models
+          streaming: false, // Always disable streaming
         }) as RunnableSequence;
 
         setChainType(ChainType.COPILOT_PLUS_CHAIN);

@@ -79,15 +79,14 @@ class ChainFactory {
 
     const model = llm.bind({
       signal: abortController?.signal,
-      streaming: !isO1Preview, // Add this line to explicitly disable streaming for O1 Preview
+      // Remove streaming option as it's not part of
       ...(isO1Preview
         ? {
             maxCompletionTokens: args.maxCompletionTokens,
           }
-        : {
-            maxTokens: args.maxTokens,
-          }),
+        : {}),
     });
+
     const instance = RunnableSequence.from([
       {
         input: (initialInput) => initialInput.input,
@@ -100,6 +99,7 @@ class ChainFactory {
       prompt,
       model,
     ]);
+
     ChainFactory.instances.set(ChainType.LLM_CHAIN, instance);
     console.log("New LLM chain created.");
     return instance;

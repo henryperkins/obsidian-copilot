@@ -1,4 +1,4 @@
-import { useChainType, useModelKey } from "@/aiParams";
+import { useChainType, useModelKey, isO1PreviewModel } from "@/aiParams";
 import { ChainType } from "@/chainFactory";
 import { updateChatMemory } from "@/chatUtils";
 import ChatInput from "@/components/chat-components/ChatInput";
@@ -40,6 +40,7 @@ const Chat: React.FC<ChatProps> = ({
   const eventTarget = useContext(EventTargetContext);
   const [chatHistory, addMessage, clearMessages] = useSharedState(sharedState);
   const [currentModelKey] = useModelKey();
+  const isO1Preview = isO1PreviewModel(currentModelKey);
   const [currentChain] = useChainType();
   const [currentAiMessage, setCurrentAiMessage] = useState("");
   const [inputMessage, setInputMessage] = useState("");
@@ -197,13 +198,20 @@ const Chat: React.FC<ChatProps> = ({
       setHistoryIndex(-1);
     }
 
+    const chatModel = chainManager.chatModelManager.getChatModel();
+    const isO1Preview = isO1PreviewModel((chatModel as any).modelName);
+
     await getAIResponse(
       promptMessageHidden,
       chainManager,
       addMessage,
       setCurrentAiMessage,
       setAbortController,
-      { debug: settings.debug, updateLoadingMessage: setLoadingMessage }
+      {
+        debug: settings.debug,
+        updateLoadingMessage: setLoadingMessage,
+        streaming: !isO1Preview, // Add streaming config
+      }
     );
     setLoading(false);
     setLoadingMessage(LOADING_MESSAGES.DEFAULT);
@@ -580,6 +588,7 @@ ${chatContent}`;
           onAddImage={(files: File[]) => setSelectedImages((prev) => [...prev, ...files])}
           setSelectedImages={setSelectedImages}
           chatHistory={chatHistory}
+          isO1Preview={isO1Preview}
         />
       </div>
     </div>

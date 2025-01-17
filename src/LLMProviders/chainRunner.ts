@@ -137,14 +137,26 @@ class LLMChainRunner extends BaseChainRunner {
 
     try {
       const chain = ChainManager.getChain();
-      const chatStream = await chain.stream({
-        input: userMessage.message,
-      } as any);
+      const chatModel = this.chainManager.chatModelManager.getChatModel();
+      const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
+      const isO1Preview = isO1PreviewModel(modelName);
 
-      for await (const chunk of chatStream) {
-        if (abortController.signal.aborted) break;
-        fullAIResponse += chunk.content;
+      if (isO1Preview) {
+        const response = await chain.invoke({
+          input: userMessage.message,
+        } as any);
+        fullAIResponse = typeof response === "string" ? response : response.text || "";
         updateCurrentAiMessage(fullAIResponse);
+      } else {
+        const chatStream = await chain.stream({
+          input: userMessage.message,
+        } as any);
+
+        for await (const chunk of chatStream) {
+          if (abortController.signal.aborted) break;
+          fullAIResponse += chunk.content;
+          updateCurrentAiMessage(fullAIResponse);
+        }
       }
     } catch (error) {
       await this.handleError(error, debug, addMessage, updateCurrentAiMessage);
@@ -262,6 +274,11 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     const memoryVariables = await memory.loadMemoryVariables({});
     const chatHistory = extractChatHistory(memoryVariables);
 
+    // Get chat model and model name
+    const chatModel = this.chainManager.chatModelManager.getChatModel();
+    const modelName = (chatModel as any).modelName || (chatModel as any).model;
+    const isO1Preview = isO1PreviewModel(modelName);
+
     // Create messages array starting with system message
     const messages: any[] = [];
 
@@ -274,8 +291,8 @@ class CopilotPlusChainRunner extends BaseChainRunner {
         "\n\nThe following is the relevant conversation history. Use this context to maintain consistency in your responses:";
     }
 
-    // Add the combined system message
-    if (fullSystemMessage) {
+    // Add the combined system message only if not using o1-preview model
+    if (fullSystemMessage && !isO1Preview) {
       messages.push({
         role: "system",
         content: `${fullSystemMessage}\nIMPORTANT: Maintain consistency with previous responses in the conversation. If you've provided information about a person or topic before, use that same information in follow-up questions.`,
@@ -316,12 +333,23 @@ class CopilotPlusChainRunner extends BaseChainRunner {
     }
 
     let fullAIResponse = "";
-    const chatStream = await this.chainManager.chatModelManager.getChatModel().stream(messages);
+    const chatConfig = {
+      streaming: !isO1Preview,
+      signal: abortController?.signal,
+    };
 
-    for await (const chunk of chatStream) {
-      if (abortController.signal.aborted) break;
-      fullAIResponse += chunk.content;
+    if (isO1Preview) {
+      const response = await chatModel.invoke(messages, chatConfig);
+      // O1 Preview response structure has content directly in the message
+      fullAIResponse = typeof response.content === "string" ? response.content : "";
       updateCurrentAiMessage(fullAIResponse);
+    } else {
+      const chatStream = await chatModel.stream(messages, chatConfig);
+      for await (const chunk of chatStream) {
+        if (abortController.signal.aborted) break;
+        fullAIResponse += chunk.content;
+        updateCurrentAiMessage(fullAIResponse);
+      }
     }
 
     return fullAIResponse;

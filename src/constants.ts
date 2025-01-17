@@ -1,6 +1,10 @@
 import { CustomModel } from "@/aiParams";
 import { type CopilotSettings } from "@/settings/model";
-import { ChainType } from "./chainFactory";
+export enum ChainType {
+  LLM_CHAIN = "llm_chain",
+  VAULT_QA_CHAIN = "vault_qa",
+  COPILOT_PLUS_CHAIN = "copilot_plus",
+}
 
 export const BREVILABS_API_BASE_URL = "https://api.brevilabs.com/v1";
 export const CHAT_VIEWTYPE = "copilot-chat-view";

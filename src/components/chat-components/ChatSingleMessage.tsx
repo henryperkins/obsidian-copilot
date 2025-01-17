@@ -45,6 +45,7 @@ interface ChatSingleMessageProps {
   message: ChatMessage;
   app: App;
   isStreaming: boolean;
+  isO1Preview?: boolean;
   onRegenerate?: () => void;
   onEdit?: (newMessage: string) => void;
   onDelete: () => void;
@@ -54,6 +55,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
   message,
   app,
   isStreaming,
+  isO1Preview,
   onRegenerate,
   onEdit,
   onDelete,
@@ -257,7 +259,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
           {!isEditing && <MessageContext context={message.context} />}
           <div className="message-content">{renderMessageContent()}</div>
 
-          {!isStreaming && (
+          {(!isStreaming || isO1Preview) && (
             <div className="message-buttons-wrapper">
               <div className="message-timestamp">{message.timestamp?.display}</div>
               <ChatButtons

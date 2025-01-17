@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { SettingItem } from "@/components/ui/setting-item";
 import { setSettings, updateSetting, useSettingsValue } from "@/settings/model";
+import { isO1PreviewModel } from "@/aiParams";
 import { CustomModel } from "@/aiParams";
 import ChatModelManager from "@/LLMProviders/chatModelManager";
 import EmbeddingManager from "@/LLMProviders/embeddingManager";
@@ -91,12 +92,17 @@ const ModelSettings: React.FC = () => {
           <SettingItem
             type="slider"
             title="Temperature"
-            description="Default is 0.1. Higher values will result in more creativeness, but also more mistakes. Set to 0 for no randomness."
-            value={settings.temperature}
+            description={
+              isO1PreviewModel(settings.defaultModelKey)
+                ? "Temperature is fixed at 1 for o1-preview models."
+                : "Default is 0.1. Higher values will result in more creativeness, but also more mistakes. Set to 0 for no randomness."
+            }
+            value={isO1PreviewModel(settings.defaultModelKey) ? 1 : settings.temperature}
             onChange={(value) => updateSetting("temperature", value)}
             min={0}
             max={2}
             step={0.05}
+            disabled={isO1PreviewModel(settings.defaultModelKey)}
           />
 
           <SettingItem
@@ -113,7 +119,7 @@ const ModelSettings: React.FC = () => {
                 </em>
               </>
             }
-            value={settings.maxTokens}
+            value={settings.maxTokens || 1000} // Default to 1000 if undefined
             onChange={(value) => updateSetting("maxTokens", value)}
             min={0}
             max={16000}

@@ -62,7 +62,7 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
               </div>
             </div>
             <SettingSlider
-              value={isO1PreviewModel ? 1 : localModel.temperature ?? 0.1}
+              value={isO1PreviewModel ? 1 : (localModel.temperature ?? 0.1)}
               onChange={(value) => handleUpdate("temperature", value)}
               max={2}
               min={0}
@@ -91,9 +91,12 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">Stream output</div>
               <SettingSwitch
-                checked={isO1PreviewModel ? false : localModel.stream ?? true}
+                checked={isO1PreviewModel ? false : (localModel.stream ?? true)}
                 onCheckedChange={(checked) => handleUpdate("stream", checked)}
                 disabled={isO1PreviewModel}
+                description={
+                  isO1PreviewModel ? "Streaming is disabled for o1-preview models." : undefined
+                }
               />
             </div>
           </div>

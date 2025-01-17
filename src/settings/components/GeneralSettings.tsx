@@ -3,6 +3,7 @@ import { ChainType } from "@/chainFactory";
 import { ChatModelProviders, DEFAULT_OPEN_AREA } from "@/constants";
 import { setSettings, updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
+import { isO1PreviewModel } from "@/aiParams";
 import CommandToggleSettings from "./CommandToggleSettings";
 import {
   ModelSettingsComponent,
@@ -138,12 +139,17 @@ const GeneralSettings: React.FC = () => {
       </h6>
       <SliderComponent
         name="Temperature"
-        description="Default is 0.1. Higher values will result in more creativeness, but also more mistakes. Set to 0 for no randomness."
+        description={
+          isO1PreviewModel(settings.defaultModelKey)
+            ? "Temperature is fixed at 1 for o1-preview models."
+            : "Default is 0.1. Higher values will result in more creativeness, but also more mistakes. Set to 0 for no randomness."
+        }
         min={0}
         max={2}
         step={0.05}
-        value={settings.temperature}
+        value={isO1PreviewModel(settings.defaultModelKey) ? 1 : settings.temperature}
         onChange={(value) => updateSetting("temperature", value)}
+        disabled={isO1PreviewModel(settings.defaultModelKey)}
       />
       <SliderComponent
         name="Token limit"
@@ -161,7 +167,7 @@ const GeneralSettings: React.FC = () => {
         min={0}
         max={16000}
         step={100}
-        value={settings.maxTokens}
+        value={settings.maxTokens || 1000} // Default to 1000 if undefined
         onChange={(value) => updateSetting("maxTokens", value)}
       />
       <SliderComponent
