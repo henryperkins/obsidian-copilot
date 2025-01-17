@@ -75,11 +75,12 @@ class ChainFactory {
    */
   public static createNewLLMChain(args: LLMChainInput): RunnableSequence {
     const { llm, memory, prompt, abortController } = args;
+    const isO1Preview = isO1PreviewModel((llm as any).modelName);
 
-    const isO1Model = isO1PreviewModel((llm as any).modelName);
     const model = llm.bind({
       signal: abortController?.signal,
-      ...(isO1Model
+      streaming: !isO1Preview, // Add this line to explicitly disable streaming for O1 Preview
+      ...(isO1Preview
         ? {
             maxCompletionTokens: args.maxCompletionTokens,
           }

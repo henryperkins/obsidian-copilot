@@ -166,7 +166,7 @@ export default class ChainManager {
       memory: memory,
       prompt: ignoreSystemMessage ? prompt : defaultPrompt,
       abortController: options.abortController,
-      streaming: false, // Always disable streaming for o1-preview models
+      streaming: !isO1Preview, // Disable streaming for O1 Preview models
       maxTokens: isO1Preview ? undefined : getSettings().maxTokens, // Don't set maxTokens for o1-preview
       maxCompletionTokens: isO1Preview ? getSettings().maxTokens : undefined, // Use maxCompletionTokens instead
     };
