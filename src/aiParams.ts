@@ -1,6 +1,7 @@
 import { ChainType } from "@/chainFactory";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { ChatModelProviders } from "@/constants";
 import { atom, useAtom } from "jotai";
 import { settingsAtom, settingsStore } from "@/settings/model";
 import { O1_PREVIEW } from "@/constants";
@@ -133,15 +134,20 @@ export function isO1PreviewModel(modelName: string): boolean {
 }
 
 export function validateO1PreviewModel(model: CustomModel): void {
-  if (!isO1PreviewModel(model.name)) return;
+  if (model.provider !== ChatModelProviders.AZURE_OPENAI) return; // Only proceed if provider is Azure OpenAI
+  if (!isO1PreviewModel(model.modelName)) return;
 
   if (model.name !== O1_PREVIEW.MODEL_ID) {
     throw new Error(`Invalid O1-preview model ID. Expected: ${O1_PREVIEW.MODEL_ID}`);
   }
 
+  // Validate required Azure OpenAI settings
+  if (!model.azureOpenAIApiVersion) {
+    throw new Error("Azure OpenAI API version is required for o1-preview models");
+  }
+
   // Force O1-preview settings
   model.temperature = O1_PREVIEW.TEMPERATURE;
-  model.stream = O1_PREVIEW.STREAM;
-  model.azureOpenAIApiVersion = O1_PREVIEW.API_VERSION;
+  model.stream = false; // Streaming must be disabled for o1-preview
   model.isO1Preview = true;
 }

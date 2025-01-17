@@ -517,9 +517,9 @@ class CopilotPlusChainRunner extends BaseChainRunner {
       .map(([human, ai]) => `Human: ${human}\nAssistant: ${ai}`)
       .join("\n");
 
-    const isO1Model = isO1PreviewModel(
-      (this.chainManager.chatModelManager.getChatModel() as any).modelName
-    );
+    const chatModel = this.chainManager.chatModelManager.getChatModel();
+    const modelName = (chatModel as any).modelName || (chatModel as any).model || "";
+    const isO1Preview = isO1PreviewModel(modelName);
 
     const messages = [
       {
@@ -530,7 +530,7 @@ class CopilotPlusChainRunner extends BaseChainRunner {
       },
     ];
 
-    if (!isO1Model) {
+    if (!isO1Preview) {
       messages.unshift({
         role: "system",
         content: condenseQuestionTemplate,

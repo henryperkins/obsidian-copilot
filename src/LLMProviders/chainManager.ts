@@ -166,7 +166,7 @@ export default class ChainManager {
       memory: memory,
       prompt: ignoreSystemMessage ? prompt : defaultPrompt,
       abortController: options.abortController,
-      streaming: !isO1Preview && getSettings().stream, // Disable streaming for o1-preview models
+      streaming: false, // Always disable streaming for o1-preview models
       maxTokens: isO1Preview ? undefined : getSettings().maxTokens, // Don't set maxTokens for o1-preview
       maxCompletionTokens: isO1Preview ? getSettings().maxTokens : undefined, // Use maxCompletionTokens instead
     };
@@ -276,7 +276,7 @@ export default class ChainManager {
       const systemPrompt = getSystemPrompt() || "";
       const effectivePrompt = ChatPromptTemplate.fromMessages([
         // For O1 models, convert system message to AI message
-        ...(isO1Model ? [new AIMessage(systemPrompt)] : []),
+        ...(isO1Preview ? [new AIMessage(systemPrompt)] : []),
         new MessagesPlaceholder("history"),
         HumanMessagePromptTemplate.fromTemplate("{input}"),
       ]);
