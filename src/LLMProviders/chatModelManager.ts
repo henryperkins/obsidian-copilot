@@ -18,7 +18,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatGroq } from "@langchain/groq";
 import { ChatMistralAI } from "@langchain/mistralai";
 import { ChatOllama } from "@langchain/ollama";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOpenAI, AzureChatOpenAI } from "@langchain/openai";
 import { ChatXAI } from "@langchain/xai";
 import { Notice } from "obsidian";
 
@@ -28,7 +28,7 @@ type ChatConstructorType = {
 
 const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.OPENAI]: ChatOpenAI,
-  [ChatModelProviders.AZURE_OPENAI]: ChatOpenAI,
+  [ChatModelProviders.AZURE_OPENAI]: AzureChatOpenAI,
   [ChatModelProviders.ANTHROPIC]: ChatAnthropic,
   [ChatModelProviders.COHEREAI]: ChatCohere,
   [ChatModelProviders.GOOGLE]: ChatGoogleGenerativeAI,
@@ -139,22 +139,14 @@ export default class ChatModelManager {
         }),
       },
       [ChatModelProviders.AZURE_OPENAI]: {
-        modelName:
+        deploymentName:
           customModel.azureOpenAIApiDeploymentName || settings.azureOpenAIApiDeploymentName,
-        openAIApiKey: await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
-        configuration: {
-          baseURL:
-            customModel.baseUrl ||
-            `https://${customModel.azureOpenAIApiInstanceName || settings.azureOpenAIApiInstanceName}.openai.azure.com/openai/deployments/${customModel.azureOpenAIApiDeploymentName || settings.azureOpenAIApiDeploymentName}`,
-          defaultQuery: {
-            "api-version": customModel.azureOpenAIApiVersion || settings.azureOpenAIApiVersion,
-          },
-          defaultHeaders: {
-            "Content-Type": "application/json",
-            "api-key": await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
-          },
-          fetch: customModel.enableCors ? safeFetch : undefined,
-        },
+        azureOpenAIApiKey: await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
+        azureOpenAIEndpoint:
+          customModel.baseUrl ||
+          `https://${customModel.azureOpenAIApiInstanceName || settings.azureOpenAIApiInstanceName}.openai.azure.com/`,
+        azureOpenAIApiVersion: customModel.azureOpenAIApiVersion || settings.azureOpenAIApiVersion,
+        ...(customModel.enableCors && { fetch: safeFetch }),
         ...this.handleOpenAIExtraArgs(isOSeries, settings.maxTokens, settings.temperature),
       },
       [ChatModelProviders.COHEREAI]: {
@@ -270,6 +262,11 @@ export default class ChatModelManager {
       ...selectedProviderConfig,
       ...tokenConfig,
     };
+
+    // Azure OpenAI relies on deploymentName; modelName causes malformed endpoint
+    if (customModel.provider === ChatModelProviders.AZURE_OPENAI) {
+      delete (finalConfig as any).modelName;
+    }
 
     // Final safety check to ensure no temperature when thinking is enabled
     if (isThinkingEnabled) {
